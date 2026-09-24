@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>amberIMPROVE</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <style>
 :root{
   --bg:#F0EFEC; --bg1:#E8E7E3; --bg3:#DAD8D2; --surface:#FBFAF8;
@@ -245,6 +247,7 @@ const T = {
     s_timing: "Takt auf diesem Rechner prüfen", s_timing_hint: "Schreibt 1 MB zur Probe mit der gewählten Qualität. 0 verpasste Takte heißt: dieser Rechner hält den Takt.",
     timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · verpasste Takte: ${d} · ${ok ? "bitgleich" : "NICHT bitgleich"}`,
     timing_busy: "gerade nicht möglich (Nachtlauf arbeitet)",
+    setup_unloaded: "Einstellungen nicht geladen – Seite neu laden.",
     s_window: "Zeitfenster", s_window_hint: "In dieser Zeit wird improvt. Titel, die nicht mehr fertig würden, werden gar nicht erst begonnen.",
     s_player: "Wiedergabe-Prüfung", s_player_url: "Statusadresse des Players (leer = keine Prüfung)", s_player_field: "Feld", s_player_idle: "Werte für „spielt nicht“ (mit Komma)",
     s_player_unreach: "Arbeiten, wenn der Player nicht antwortet",
@@ -307,6 +310,7 @@ const T = {
     s_timing: "Test timing on this machine", s_timing_hint: "Writes 1 MB with the chosen quality. 0 missed blocks means this machine keeps the timing.",
     timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · missed blocks: ${d} · ${ok ? "bit-identical" : "NOT bit-identical"}`,
     timing_busy: "not possible right now (night run is working)",
+    setup_unloaded: "Settings not loaded – please reload the page.",
     s_window: "Time window", s_window_hint: "Titles are improved during this time. Titles that would not finish are not started.",
     s_player: "Playback check", s_player_url: "Player status URL (empty = no check)", s_player_field: "Field", s_player_idle: "Values meaning “not playing” (comma separated)",
     s_player_unreach: "Work when the player does not answer",
@@ -457,11 +461,29 @@ function showView(v) {
   if (v === "setup" && !S) loadSetup();
 }
 
+// Laden die Einstellungen nicht (Server nicht erreichbar, alte Seite in einem
+// offenen Tab gegen einen neuen Dienst), stand bis 0.1.0 NICHTS da — die
+// Auswahl blieb leer, und „Takt prüfen" warf „null is not an object
+// (evaluating 'S.config')" (Toms Meldung 24.09.2026). Jetzt sagt die Seite es.
 async function loadSetup() {
-  const r = await fetch("api/setup");
-  if (!r.ok) return;
-  S = await r.json();
+  try {
+    const r = await fetch("api/setup");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    S = await r.json();
+  } catch (e) {
+    S = null;
+    $("checks").innerHTML = `<div class="err">${esc(t("setup_unloaded"))} <span class="muted">(${esc(e.message)})</span></div>`;
+    return;
+  }
   fillSetup();
+}
+
+// Ohne geladene Einstellungen gibt es nichts zu pruefen oder zu speichern.
+function setupGeladen(ziel) {
+  if (S) return true;
+  $(ziel).textContent = t("setup_unloaded");
+  $(ziel).className = (ziel === "timingOut" ? "nums " : "hint ") + "err";
+  return false;
 }
 
 function choice(name, value, on, t1, t2, extra = "") {
@@ -568,6 +590,7 @@ async function post(url, body) {
 }
 
 async function runCheck() {
+  if (!setupGeladen("checks")) return;
   $("checks").innerHTML = "…";
   try {
     const rep = await post("api/setup/check", collect());
@@ -586,6 +609,7 @@ async function runCheck() {
 }
 
 async function runTiming() {
+  if (!setupGeladen("timingOut")) return;
   $("timingOut").textContent = "…";
   $("timingBtn").disabled = true;
   try {
@@ -600,6 +624,7 @@ async function runTiming() {
 }
 
 async function save() {
+  if (!setupGeladen("saveOut")) return;
   try {
     const r = await post("api/setup/save", collect());
     $("saveOut").textContent = `${t("saved")} (${r.method})`;
