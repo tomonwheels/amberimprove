@@ -1,0 +1,45 @@
+{
+  "music": "/mnt/Music/Music",
+  "work_dir": "/mnt/Music/.amberimprove-tmp",
+  "ram_dir": "/dev/shm/amberimprove",
+  "state_dir": "/var/lib/amberimprove",
+
+  "source": {
+    "kind": "rsync",
+    "remote": "amberimprove@192.168.178.125:/media/sdb2-ata-Samsung_SSD_970/Backup/Musik",
+    "key": "/etc/amberimprove/quelle_key",
+    "port": 22,
+    "ssh": ["-o", "UserKnownHostsFile=/etc/amberimprove/known_hosts"]
+  },
+
+  "passes": 1,
+  "retries": 10,
+  "preset": "sehr-langsam",
+  "method": "frankl-0.9.3/sehr-langsam/1x",
+
+  "bufhrt": {
+    "program": "/opt/amberimprove/bin/bufhrt",
+    "cpu": -1,
+    "rt_prio": 0,
+    "buffer_size": 419430400,
+    "loops_per_second": 10,
+    "bytes_per_second": 188044,
+    "number_copies": 1,
+    "ram_loops_per_second": 100,
+    "ram_bytes_per_second": 1880440,
+    "dsyncs_per_second": 1,
+    "out_copies": 256,
+    "shift": 0
+  },
+
+  "window": { "from": "23:30", "to": "06:30", "blocked": [] },
+
+  "playback": {
+    "url": "http://127.0.0.1:8082/api/v1/player/playback/state",
+    "field": "engine_state",
+    "idle": ["idle", "stopped", ""],
+    "unreachable_is_idle": false
+  },
+
+  "mtime_tolerance_s": 2
+}

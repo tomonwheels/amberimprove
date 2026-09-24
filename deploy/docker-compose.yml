@@ -1,0 +1,20 @@
+# amberIMPROVE im Container (Synology Container Manager, QNAP, ZimaOS, Unraid …)
+#
+# 1. Den Pfad hinter „/music“ auf den eigenen Musikordner setzen.
+# 2. Starten, dann im Browser http://<nas>:8093/#setup öffnen.
+#    Im Setup als Musikordner „/music“ wählen.
+services:
+  amberimprove:
+    image: ghcr.io/tomonwheels/amberimprove:latest
+    container_name: amberimprove
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
+    environment:
+      TZ: Europe/Berlin          # das Zeitfenster gilt in dieser Zeitzone
+    volumes:
+      - /volume1/music:/music    # ← eigener Musikordner (Synology: /volume1/…)
+      - ./amberimprove-config:/config
+    # Die Originale kommen für jeden Titel in den Arbeitsspeicher (/dev/shm).
+    # Docker gibt standardmäßig nur 64 MB — für lange Hi-Res-Titel zu wenig.
+    shm_size: "2gb"

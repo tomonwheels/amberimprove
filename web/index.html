@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>amberIMPROVE</title>
+<style>
+:root{
+  --bg:#F0EFEC; --bg1:#E8E7E3; --bg3:#DAD8D2; --surface:#FBFAF8;
+  --tx:#1E1C1A; --tx2:#4A4742; --tx3:#8A857D;
+  --am:#C8841A; --amb:#F6ECDD; --ambb:#E4C79A; --brd:#DAD8D2; --r:8px;
+  --bad:#b3413a;
+  --mono:'IBM Plex Mono','SF Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:20px;font-weight:600;margin:0;letter-spacing:-.01em}
+h1 .am{color:var(--am)}
+h2{font-size:15px;font-weight:600;margin:0 0 10px}
+.sub{color:var(--tx3);font-size:12px;margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--brd);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.btn-sm{font-family:var(--sans);font-size:12px;font-weight:500;padding:6px 12px;border-radius:var(--r);border:1px solid var(--brd);background:var(--surface);color:var(--tx2);cursor:pointer;transition:all .12s}
+.btn-sm:hover{border-color:var(--am);color:var(--am)}
+.btn-sm.on{background:var(--am);border-color:var(--am);color:#fff}
+.lang{display:flex;gap:4px}
+.phase{display:inline-flex;align-items:center;height:26px;padding:0 12px;border:1px solid var(--ambb);background:var(--amb);color:var(--am);border-radius:13px;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.phase.idle{border-color:var(--brd);background:var(--bg1);color:var(--tx3)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin-top:12px;font-size:13px}
+.kv dt{color:var(--tx3)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.bar{height:5px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:10px 0 6px}
+.bar > div{height:100%;background:var(--am);border-radius:3px;width:0;transition:width .3s}
+.nums{font-family:var(--mono);font-size:11px;color:var(--tx2)}
+.filters{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.albums{max-height:420px;overflow-y:auto;border-top:1px solid var(--brd)}
+.alb{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--brd);cursor:pointer}
+.alb:hover{color:var(--am)}
+.alb .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alb .cnt{font-family:var(--mono);font-size:11px;color:var(--tx3);white-space:nowrap}
+.wand{width:18px;height:18px;flex:0 0 18px;color:var(--bg3)}
+.wand.full{color:var(--am)}
+.wand.part{color:var(--ambb)}
+#log{font-family:var(--mono);font-size:11px;color:var(--tx2);max-height:260px;overflow:auto}
+#log div{padding:2px 0;border-bottom:1px dotted var(--bg3);overflow-wrap:anywhere}
+#log .t{color:var(--tx3)}
+#log .bad{color:var(--bad)}
+dialog{border:1px solid var(--brd);border-radius:var(--r);background:var(--surface);color:var(--tx);max-width:min(760px,calc(100vw - 32px));width:100%;padding:18px}
+dialog::backdrop{background:rgba(30,28,26,.35)}
+dialog table{width:100%;border-collapse:collapse;font-size:12px}
+dialog td,dialog th{text-align:left;padding:4px 6px;border-bottom:1px solid var(--brd);vertical-align:top}
+dialog th{color:var(--tx3);font-weight:500}
+dialog pre{font-family:var(--mono);font-size:10px;background:var(--bg1);padding:10px;border-radius:var(--r);overflow:auto;max-height:280px}
+dialog summary{cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--am);margin-top:12px}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.tabs{display:flex;gap:4px;margin-bottom:14px}
+.field{margin:12px 0}
+.field > label, .lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px}
+.hint{font-size:12px;color:var(--tx3);margin-top:4px}
+.warn{color:#9a5b00}
+.err{color:var(--bad)}
+input[type=text],input[type=time],input[type=number],select{font-family:var(--sans);font-size:13px;padding:6px 10px;border:1px solid var(--brd);border-radius:var(--r);background:var(--surface);color:var(--tx);max-width:100%}
+input[type=text]{width:100%}
+.choices{display:grid;gap:6px}
+.choice{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--brd);border-radius:var(--r);cursor:pointer;background:var(--surface)}
+.choice:hover{border-color:var(--ambb)}
+.choice.on{border-color:var(--am);box-shadow:0 0 0 1px var(--am)}
+.choice input{margin-top:3px;accent-color:var(--am)}
+.choice .t1{font-weight:500}
+.choice .t2{font-size:12px;color:var(--tx3)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:9px;background:var(--bg1);color:var(--tx3);margin-left:6px}
+.tag.w{background:#f7e7c8;color:#9a5b00}
+.browser{border:1px solid var(--brd);border-radius:var(--r);max-height:220px;overflow-y:auto;margin-top:6px}
+.browser div{padding:5px 10px;border-bottom:1px solid var(--bg1);cursor:pointer;font-size:13px}
+.browser div:hover{color:var(--am)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.checks{margin-top:10px;font-size:13px}
+.checks div{padding:3px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn-amber{font-family:var(--sans);font-size:12px;font-weight:500;padding:6px 12px;border-radius:var(--r);border:1px solid var(--am);background:var(--am);color:#fff;cursor:pointer}
+.btn-amber:disabled{background:var(--bg3);border-color:var(--bg3);color:var(--tx3);cursor:default}
+.ok{color:var(--am)}
+.muted{color:var(--tx3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>amber<span class="am">IMPROVE</span></h1>
+      <div class="sub" data-i18n="subtitle"></div>
+    </div>
+    <div class="lang">
+      <button class="btn-sm" data-lang="de">DE</button>
+      <button class="btn-sm" data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="btn-sm on" data-view="overview" data-i18n="tab_overview"></button>
+    <button class="btn-sm" data-view="setup" data-i18n="tab_setup"></button>
+  </div>
+
+  <section id="view-overview">
+  <div class="card">
+    <h2 data-i18n="h_state"></h2>
+    <span class="phase" id="phase"></span>
+    <dl class="kv" id="stateKV"></dl>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="h_library"></h2>
+    <div class="bar"><div id="bar"></div></div>
+    <div class="nums" id="libNums"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="h_albums"></h2>
+    <div class="filters">
+      <button class="btn-sm on" data-filter="all" data-i18n="f_all"></button>
+      <button class="btn-sm" data-filter="part" data-i18n="f_part"></button>
+      <button class="btn-sm" data-filter="full" data-i18n="f_full"></button>
+      <button class="btn-sm" data-filter="open" data-i18n="f_open"></button>
+    </div>
+    <div class="albums" id="albums"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="h_log"></h2>
+    <div id="log"></div>
+  </div>
+  </section>
+
+  <section id="view-setup" hidden>
+    <div class="card">
+      <h2 data-i18n="s_drive"></h2>
+      <div class="hint" data-i18n="s_drive_hint"></div>
+      <div class="choices" id="drives" style="margin-top:10px"></div>
+      <div class="field">
+        <span class="lbl" data-i18n="s_music"></span>
+        <div class="row"><input type="text" id="music" data-i18n-placeholder="s_music_ph"><button class="btn-sm" id="musicBrowse" data-i18n="browse"></button></div>
+        <div class="browser" id="musicBrowser" hidden></div>
+        <div class="hint"><span data-i18n="s_workdir"></span> <span id="workdir" class="nums"></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="s_source"></h2>
+      <div class="choices" id="sourceKinds"></div>
+      <div id="srcPath" class="field" hidden>
+        <span class="lbl" data-i18n="s_src_path"></span><input type="text" id="srcPathIn">
+      </div>
+      <div id="srcRsync" hidden>
+        <div class="field"><span class="lbl" data-i18n="s_src_remote"></span><input type="text" id="srcRemote" placeholder="user@host:/path/to/music"></div>
+        <div class="row">
+          <div class="field" style="flex:1;min-width:220px"><span class="lbl" data-i18n="s_src_key"></span><input type="text" id="srcKey" placeholder="/etc/amberimprove/quelle_key"></div>
+          <div class="field"><span class="lbl" data-i18n="s_src_port"></span><input type="number" id="srcPort" min="1" max="65535" placeholder="22" style="width:90px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="s_quality"></h2>
+      <div class="choices" id="presets"></div>
+      <div class="field row">
+        <span class="lbl" style="margin:0" data-i18n="s_passes"></span>
+        <select id="passes"></select>
+      </div>
+      <div class="row">
+        <button class="btn-sm" id="timingBtn" data-i18n="s_timing"></button>
+        <span id="timingOut" class="nums"></span>
+      </div>
+      <div class="hint" data-i18n="s_timing_hint"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="s_window"></h2>
+      <div class="row">
+        <input type="time" id="winFrom"> – <input type="time" id="winTo">
+      </div>
+      <div class="hint" data-i18n="s_window_hint"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="s_player"></h2>
+      <div class="field"><span class="lbl" data-i18n="s_player_url"></span><input type="text" id="plUrl" data-i18n-placeholder="s_player_ph"></div>
+      <div class="row">
+        <div class="field" style="flex:1;min-width:160px"><span class="lbl" data-i18n="s_player_field"></span><input type="text" id="plField"></div>
+        <div class="field" style="flex:2;min-width:220px"><span class="lbl" data-i18n="s_player_idle"></span><input type="text" id="plIdle"></div>
+      </div>
+      <label class="row" style="font-size:13px"><input type="checkbox" id="plUnreach"> <span data-i18n="s_player_unreach"></span></label>
+      <div class="hint" data-i18n="s_player_hint"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="s_check_h"></h2>
+      <div class="actions">
+        <button class="btn-sm" id="checkBtn" data-i18n="s_check"></button>
+        <button class="btn-amber" id="saveBtn" data-i18n="s_save" disabled></button>
+      </div>
+      <div class="checks" id="checks"></div>
+      <div class="hint" id="saveOut"></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg-head">
+    <div><h2 id="dlgTitle" style="margin:0"></h2><div class="sub" id="dlgSub"></div></div>
+    <button class="btn-sm" id="dlgClose" data-i18n="close"></button>
+  </div>
+  <table id="dlgTable"></table>
+  <details><summary data-i18n="raw"></summary><pre id="dlgRaw"></pre></details>
+</dialog>
+
+<template id="wandTpl">
+  <svg class="wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 20 15 9"/><path d="m13.5 7.5 3 3"/>
+    <path d="M18 3v3M16.5 4.5h3M20 10v2M19 11h2M11 3v2M10 4h2"/>
+  </svg>
+</template>
+
+<script>
+const T = {
+  de: {
+    tab_overview: "Übersicht", tab_setup: "Einrichtung",
+    browse: "Durchsuchen", up: "↑ eine Ebene höher", choose: "Diesen Ordner wählen",
+    s_drive: "Laufwerk mit der Musik", s_drive_hint: "Das Laufwerk, von dem abgespielt wird. amberIMPROVE schreibt die Titel darauf neu.",
+    s_music: "Musikordner", s_music_ph: "Bitte oben das Laufwerk wählen, dann den Ordner mit der Musik", s_player_ph: "z. B. amberPLAY: http://127.0.0.1:8082/api/v1/player/playback/state", choose_drive_first: "Bitte zuerst Laufwerk und Musikordner wählen – gemessen wird auf dieser Platte.", s_workdir: "Arbeitsordner (automatisch, gleiches Laufwerk):",
+    d_system: "System", d_weak: "FAT/exFAT/NTFS – frankl hörte auf ext4 bessere Ergebnisse", d_free: "frei",
+    s_source: "Woher kommen die Originale?",
+    src_self_t: "Die Datei selbst", src_self_d: "Keine zweite Kopie nötig. Die Datei wird in den Arbeitsspeicher gelesen und nach jedem Schritt bitgenau geprüft.",
+    src_path_t: "Ein Ordner auf diesem Rechner", src_path_d: "Eine zweite Kopie, z. B. eine eingehängte Freigabe (SMB/NFS) oder eine zweite Platte.",
+    src_rsync_t: "Ein anderer Rechner (rsync über ssh)", src_rsync_d: "Eine Sicherung auf einem Server oder NAS. Der Schlüssel muss dort nur lesen dürfen.",
+    s_src_path: "Ordner mit den Originalen", s_src_remote: "Quelle (benutzer@rechner:/pfad)", s_src_key: "ssh-Schlüssel", s_src_port: "Port",
+    s_quality: "Qualität",
+    p_sehr_langsam_t: "frankl „sehr langsam“", p_sehr_langsam_d: "Die beste Kopie laut Forumstests. 10 Takte je Sekunde, 256 Kopien je Block.",
+    p_langsam_t: "Langsam", p_langsam_d: "100 Takte je Sekunde, 10 Kopien je Block.",
+    p_zuegig_t: "Zügig", p_zuegig_d: "256 Takte je Sekunde, 10 Kopien je Block.",
+    p_custom_t: "Eigene Werte", p_custom_d: "Von Hand in der Konfigurationsdatei gesetzt",
+    per_sec: "je Sekunde",
+    s_passes: "Durchgänge je Titel",
+    s_timing: "Takt auf diesem Rechner prüfen", s_timing_hint: "Schreibt 1 MB zur Probe mit der gewählten Qualität. 0 verpasste Takte heißt: dieser Rechner hält den Takt.",
+    timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · verpasste Takte: ${d} · ${ok ? "bitgleich" : "NICHT bitgleich"}`,
+    timing_busy: "gerade nicht möglich (Nachtlauf arbeitet)",
+    s_window: "Zeitfenster", s_window_hint: "In dieser Zeit wird improvt. Titel, die nicht mehr fertig würden, werden gar nicht erst begonnen.",
+    s_player: "Wiedergabe-Prüfung", s_player_url: "Statusadresse des Players (leer = keine Prüfung)", s_player_field: "Feld", s_player_idle: "Werte für „spielt nicht“ (mit Komma)",
+    s_player_unreach: "Arbeiten, wenn der Player nicht antwortet",
+    s_player_hint: "Spielt der Player, wird nicht improvt, und ein laufender Titel wird sofort abgebrochen – die Datei bleibt dann unverändert. Ohne Adresse schützt nur das Zeitfenster.",
+    s_check_h: "Prüfen und speichern", s_check: "Prüfen", s_save: "Speichern",
+    saved: "Gespeichert. Gilt ab dem nächsten Titel.",
+    nights: (n,t,a) => `${t} Titel in ${a} Alben · mit dieser Einstellung ca. ${n} Nächte für alles`,
+    ck: { config: "Einstellungen", music: "Musikordner (Titel / Alben)", filesystem: "Dateisystem", workdir: "Arbeitsordner auf demselben Laufwerk",
+          source: "Originale erreichbar", bufhrt: "bufhrt vorhanden", player: "Player antwortet",
+          network: "Musik liegt auf einem Netzlaufwerk – improvefile wirkt nur auf direkt angeschlossenen Platten (USB/SATA/NVMe). Bitte auf dem Rechner einrichten, an dem die Platte hängt." },
+    ck_player_none: "keine Prüfung – nur das Zeitfenster schützt",
+    ck_weak: "FAT/exFAT/NTFS: funktioniert, frankl hörte auf ext4 aber bessere Ergebnisse",
+    not_configured: "Noch nicht eingerichtet – bitte unter „Einrichtung“ festlegen.",
+    subtitle: "Titel für Titel, nachts, bit-identisch neu geschrieben (Verfahren: frankl)",
+    h_state: "Zustand", h_library: "Bibliothek", h_albums: "Alben", h_log: "Protokoll",
+    f_all: "Alle", f_part: "Teilweise", f_full: "Fertig", f_open: "Offen",
+    close: "Schließen", raw: "Rohdaten (.amberimprove.json)",
+    ph_running: "LÄUFT", ph_waiting: "WARTET", ph_stopped: "RUHT",
+    k_reason: "Grund", k_file: "Titel", k_pass: "Durchgang", k_since: "seit", k_run: "Dieser Lauf",
+    k_method: "Verfahren", k_window: "Zeitfenster", k_updated: "Stand",
+    run_counts: (d,s,f) => `${d} improvt · ${s} übersprungen · ${f} Fehler`,
+    lib_nums: (d,t,o,h) => `${d} von ${t} Titeln improvt${o?` · ${o} mit älterem Verfahren`:""} · offen noch ca. ${h} Stunden reine Schreibzeit`,
+    albums_empty: "Keine Alben in dieser Auswahl.",
+    col_file: "Titel", col_when: "improvt am", col_method: "Verfahren", col_host: "Rechner", col_delayed: "Takt verpasst",
+    dlg_none: "Noch keine Titel in diesem Album improvt.",
+    older: "älteres Verfahren", older_short: "älter", all_day: "rund um die Uhr",
+    reason: {
+      ok: "", outside_window: "außerhalb des Zeitfensters", blocked: "Sperrzeit (Sicherung)",
+      playing: "es wird gerade Musik gespielt", player_no_answer: "amberPLAY antwortet nicht",
+      window_over: "Zeitfenster zu Ende", "context canceled": "abgebrochen"
+    },
+    ev: {
+      run_start: "Nachtlauf gestartet", start: "beginnt", delayed: "Takt verpasst (Durchgang: Blöcke)", done: "improvt", retry: "nicht bit-identisch, neuer Versuch",
+      interrupted: "unterbrochen, Datei unverändert", failed: "Fehler, Datei unverändert",
+      skipped_source_differs: "übersprungen: Original auf der Quelle weicht ab",
+      skipped_no_ram: "übersprungen: zu wenig Arbeitsspeicher", skipped_no_space: "übersprungen: zu wenig Platz auf der SSD",
+      skipped_fetch_failed: "übersprungen: Original nicht abholbar", manifest_failed: "Protokolldatei nicht schreibbar",
+      window_over: "Zeitfenster zu Ende", queue_empty: "alles improvt", scan_failed: "Bibliothek nicht lesbar",
+      too_many_failures: "abgebrochen nach drei Fehlern", no_time_left: "Nacht endet: nächster Titel würde nicht mehr fertig", too_big_for_window: "übersprungen: passt in keine Nacht (Zeitfenster oder Geschwindigkeit ändern)", run_stopped: "Nachtlauf beendet"
+    }
+  },
+  en: {
+    tab_overview: "Overview", tab_setup: "Setup",
+    browse: "Browse", up: "↑ one level up", choose: "Choose this folder",
+    s_drive: "Drive with the music", s_drive_hint: "The drive you play from. amberIMPROVE rewrites the titles on it.",
+    s_music: "Music folder", s_music_ph: "Please choose the drive above, then the folder with the music", s_player_ph: "e.g. amberPLAY: http://127.0.0.1:8082/api/v1/player/playback/state", choose_drive_first: "Please choose drive and music folder first – the test runs on that drive.", s_workdir: "Work folder (automatic, same drive):",
+    d_system: "system", d_weak: "FAT/exFAT/NTFS – frankl heard better results on ext4", d_free: "free",
+    s_source: "Where do the originals come from?",
+    src_self_t: "The file itself", src_self_d: "No second copy needed. The file is read into RAM and verified bit by bit after every step.",
+    src_path_t: "A folder on this machine", src_path_d: "A second copy, e.g. a mounted share (SMB/NFS) or a second drive.",
+    src_rsync_t: "Another machine (rsync over ssh)", src_rsync_d: "A backup on a server or NAS. The key only needs read access there.",
+    s_src_path: "Folder with the originals", s_src_remote: "Source (user@host:/path)", s_src_key: "ssh key", s_src_port: "Port",
+    s_quality: "Quality",
+    p_sehr_langsam_t: "frankl “very slow”", p_sehr_langsam_d: "The best copy according to the forum tests. 10 loops per second, 256 copies per block.",
+    p_langsam_t: "Slow", p_langsam_d: "100 loops per second, 10 copies per block.",
+    p_zuegig_t: "Brisk", p_zuegig_d: "256 loops per second, 10 copies per block.",
+    p_custom_t: "Custom values", p_custom_d: "Set by hand in the configuration file",
+    per_sec: "per second",
+    s_passes: "Passes per title",
+    s_timing: "Test timing on this machine", s_timing_hint: "Writes 1 MB with the chosen quality. 0 missed blocks means this machine keeps the timing.",
+    timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · missed blocks: ${d} · ${ok ? "bit-identical" : "NOT bit-identical"}`,
+    timing_busy: "not possible right now (night run is working)",
+    s_window: "Time window", s_window_hint: "Titles are improved during this time. Titles that would not finish are not started.",
+    s_player: "Playback check", s_player_url: "Player status URL (empty = no check)", s_player_field: "Field", s_player_idle: "Values meaning “not playing” (comma separated)",
+    s_player_unreach: "Work when the player does not answer",
+    s_player_hint: "While the player plays, nothing is improved, and a running title is abandoned at once – the file stays unchanged. Without a URL only the time window protects.",
+    s_check_h: "Check and save", s_check: "Check", s_save: "Save",
+    saved: "Saved. Applies from the next title on.",
+    nights: (n,t,a) => `${t} titles in ${a} albums · with these settings about ${n} nights for everything`,
+    ck: { config: "Settings", music: "Music folder (titles / albums)", filesystem: "Filesystem", workdir: "Work folder on the same drive",
+          source: "Originals reachable", bufhrt: "bufhrt present", player: "Player answers",
+          network: "Music is on a network drive – improvefile only works on directly attached drives (USB/SATA/NVMe). Please set it up on the machine the drive is attached to." },
+    ck_player_none: "no check – only the time window protects",
+    ck_weak: "FAT/exFAT/NTFS: works, but frankl heard better results on ext4",
+    not_configured: "Not set up yet – please configure under “Setup”.",
+    subtitle: "Title by title, at night, rewritten bit-identically (method: frankl)",
+    h_state: "State", h_library: "Library", h_albums: "Albums", h_log: "Log",
+    f_all: "All", f_part: "Partial", f_full: "Done", f_open: "Open",
+    close: "Close", raw: "Raw data (.amberimprove.json)",
+    ph_running: "RUNNING", ph_waiting: "WAITING", ph_stopped: "IDLE",
+    k_reason: "Reason", k_file: "Title", k_pass: "Pass", k_since: "since", k_run: "This run",
+    k_method: "Method", k_window: "Time window", k_updated: "Updated",
+    run_counts: (d,s,f) => `${d} improved · ${s} skipped · ${f} errors`,
+    lib_nums: (d,t,o,h) => `${d} of ${t} titles improved${o?` · ${o} with an older method`:""} · about ${h} hours of pure writing time left`,
+    albums_empty: "No albums in this selection.",
+    col_file: "Title", col_when: "improved", col_method: "Method", col_host: "Host", col_delayed: "Timing missed",
+    dlg_none: "No titles of this album improved yet.",
+    older: "older method", older_short: "older", all_day: "around the clock",
+    reason: {
+      ok: "", outside_window: "outside the time window", blocked: "blocked (backup)",
+      playing: "music is playing", player_no_answer: "amberPLAY does not answer",
+      window_over: "time window over", "context canceled": "cancelled"
+    },
+    ev: {
+      run_start: "night run started", start: "starting", delayed: "timing missed (pass: blocks)", done: "improved", retry: "not bit-identical, retrying",
+      interrupted: "interrupted, file unchanged", failed: "error, file unchanged",
+      skipped_source_differs: "skipped: original at the source differs",
+      skipped_no_ram: "skipped: not enough RAM", skipped_no_space: "skipped: not enough space on the SSD",
+      skipped_fetch_failed: "skipped: could not fetch the original", manifest_failed: "record file not writable",
+      window_over: "time window over", queue_empty: "everything improved", scan_failed: "library not readable",
+      too_many_failures: "stopped after three errors", no_time_left: "night ends: next title would not finish in time", too_big_for_window: "skipped: does not fit into one night (change window or speed)", run_stopped: "night run finished"
+    }
+  }
+};
+
+let lang = "de";
+try { lang = localStorage.getItem("amberimprove.lang") || (navigator.language || "de").slice(0,2); } catch (e) {}
+const urlLang = new URLSearchParams(location.search).get("lang");
+if (urlLang) lang = urlLang;
+if (!T[lang]) lang = "en";
+let filter = "all";
+let data = null;
+const $ = id => document.getElementById(id);
+const t = k => T[lang][k];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtTime = iso => iso ? new Date(iso).toLocaleString(lang === "de" ? "de-DE" : "en-GB", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+const wand = cls => { const n = $("wandTpl").content.firstElementChild.cloneNode(true); n.classList.add(cls); return n.outerHTML; };
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  if (data) render();
+  if (S && $("passes").options.length) { const keep = checkedOK; S.config = collect(); fillSetup(); checkedOK = keep; $("saveBtn").disabled = !keep; }
+}
+
+function render() {
+  if (data && data.configured === false) {
+    $("phase").textContent = "–";
+    $("stateKV").innerHTML = `<dd>${t("not_configured")}</dd>`;
+    return;
+  }
+  const s = data.state || {};
+  const ph = $("phase");
+  ph.textContent = t("ph_" + (s.phase || "stopped"));
+  ph.classList.toggle("idle", s.phase !== "running");
+  const kv = [];
+  if (s.reason) kv.push([t("k_reason"), esc(T[lang].reason[s.reason] ?? s.reason)]);
+  if (s.file) {
+    kv.push([t("k_file"), esc(s.file)]);
+    kv.push([t("k_pass"), `${s.pass || 0} / ${s.passes || 0} · ${t("k_since")} ${fmtTime(s.file_start)}`]);
+  }
+  kv.push([t("k_run"), t("run_counts")(s.done_this_run || 0, s.skipped_this_run || 0, s.failed_this_run || 0)]);
+  kv.push([t("k_method"), esc(`${data.method} · ${data.passes}×`)]);
+  const win = data.window.from === data.window.to ? t("all_day") : `${data.window.from}–${data.window.to}`;
+  kv.push([t("k_window"), esc(win + (data.window.blocked || []).map(b => `, ⊘ ${b.from}–${b.to}`).join(""))]);
+  if (s.updated) kv.push([t("k_updated"), fmtTime(s.updated)]);
+  $("stateKV").innerHTML = kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+
+  const pct = data.titles ? Math.round(100 * data.done / data.titles) : 0;
+  $("bar").style.width = pct + "%";
+  const hours = data.bytes_per_second ? (data.pending_bytes * data.passes / data.bytes_per_second / 3600).toLocaleString(lang === "de" ? "de-DE" : "en-GB", {maximumFractionDigits: 1}) : "?";
+  $("libNums").textContent = t("lib_nums")(data.done, data.titles, data.older, hours);
+
+  const albums = (data.albums || []).filter(a =>
+    filter === "all" || (filter === "full" && a.done === a.total) ||
+    (filter === "part" && a.done > 0 && a.done < a.total) || (filter === "open" && a.done === 0));
+  $("albums").innerHTML = albums.length ? albums.map(a => {
+    const cls = a.done === a.total ? "full" : a.done > 0 ? "part" : "none";
+    const older = a.older ? ` · ${a.older} ${t("older_short")}` : "";
+    return `<div class="alb" data-dir="${esc(a.dir)}">${wand(a.older && cls === "none" ? "part" : cls)}<span class="name">${esc(a.dir)}</span><span class="cnt">${a.done}/${a.total}${older}</span></div>`;
+  }).join("") : `<div class="muted" style="padding:8px 0">${t("albums_empty")}</div>`;
+
+  const ev = (s.events || []).slice(-80).reverse();
+  $("log").innerHTML = ev.map(e => {
+    const bad = /failed|skipped|too_many/.test(e.kind);
+    const txt = T[lang].ev[e.kind] ?? e.kind;
+    return `<div><span class="t">${fmtTime(e.time)}</span> <span class="${bad ? "bad" : ""}">${esc(txt)}</span> ${esc(e.file || "")} <span class="t">${esc(e.detail || "")}</span></div>`;
+  }).join("");
+}
+
+async function load() {
+  try {
+    const r = await fetch("api/overview");
+    if (r.ok) {
+      const first = data === null;
+      data = await r.json();
+      render();
+      if (first && data.configured === false && location.hash !== "#setup") showView("setup");
+    }
+  } catch (e) {}
+}
+
+async function openAlbum(dir) {
+  const r = await fetch("api/manifest?dir=" + encodeURIComponent(dir));
+  if (!r.ok) return;
+  const m = await r.json();
+  const files = Object.entries(m.files || {}).sort(([a], [b]) => a.localeCompare(b));
+  $("dlgTitle").textContent = dir;
+  $("dlgSub").textContent = files.length ? `${files.length} · ${files[0][1].method}` : "";
+  $("dlgTable").innerHTML = files.length
+    ? `<tr><th>${t("col_file")}</th><th>${t("col_when")}</th><th>${t("col_method")}</th><th>${t("col_host")}</th><th>${t("col_delayed")}</th></tr>` +
+      files.map(([name, e]) => `<tr><td>${esc(name)}</td><td>${fmtTime(e.improved_at)}</td><td class="${e.method === data.method ? "ok" : "muted"}">${esc(e.method)}${e.method === data.method ? "" : " (" + t("older") + ")"} · ${e.passes}×</td><td>${esc(e.host)}</td><td class="${e.delayed_blocks ? "muted" : "ok"}">${e.delayed_blocks ?? "–"}</td></tr>`).join("")
+    : `<tr><td class="muted">${t("dlg_none")}</td></tr>`;
+  $("dlgRaw").textContent = JSON.stringify(m, null, 2);
+  $("dlg").showModal();
+}
+
+
+// ── Setup ────────────────────────────────────────────────────────────
+let S = null;          // {config, presets, drives, overhead}
+let checkedOK = false;
+const gb = b => (b / 1e9).toFixed(b >= 1e11 ? 0 : 1) + " GB";
+
+function showView(v) {
+  document.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("view-overview").hidden = v !== "overview";
+  $("view-setup").hidden = v !== "setup";
+  if (v === "setup" && !S) loadSetup();
+}
+
+async function loadSetup() {
+  const r = await fetch("api/setup");
+  if (!r.ok) return;
+  S = await r.json();
+  fillSetup();
+}
+
+function choice(name, value, on, t1, t2, extra = "") {
+  return `<label class="choice ${on ? "on" : ""}"><input type="radio" name="${name}" value="${esc(value)}" ${on ? "checked" : ""}>` +
+    `<div><div class="t1">${t1}${extra}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}</div></label>`;
+}
+
+function fillSetup() {
+  if (!S) return;
+  const c = S.config;
+  const mountOf = p => (S.drives || []).filter(d => p === d.mount || p.startsWith(d.mount.replace(/\/$/, "") + "/"))
+    .sort((a, b) => b.mount.length - a.mount.length)[0];
+  const cur = mountOf(c.music);
+  $("drives").innerHTML = (S.drives || []).map(d => choice("drive", d.mount, cur && cur.mount === d.mount,
+    `${esc(d.mount)} <span class="nums">${esc(d.label || d.device)}</span>`,
+    `${esc(d.model || "")} ${esc(d.tran || "")} · ${esc(d.fstype)} · ${gb(d.size)}, ${gb(d.free)} ${t("d_free")}` + (d.weak ? `<br><span class="warn">${t("d_weak")}</span>` : ""),
+    (d.system ? `<span class="tag">${t("d_system")}</span>` : "") + (d.weak ? `<span class="tag w">FAT/NTFS</span>` : ""))).join("")
+    || `<div class="hint err">${esc(S.drives_error || "")}</div>`;
+  $("music").value = c.music;
+  $("workdir").textContent = c.work_dir;
+
+  const kinds = ["self", "path", "rsync"];
+  $("sourceKinds").innerHTML = kinds.map(k => choice("srckind", k, c.source.kind === k, t(`src_${k}_t`), t(`src_${k}_d`))).join("");
+  $("srcPathIn").value = c.source.path || "";
+  $("srcRemote").value = c.source.remote || "";
+  $("srcKey").value = c.source.key || "";
+  $("srcPort").value = c.source.port || "";
+  showSource(c.source.kind);
+
+  $("presets").innerHTML = S.presets.map(p => choice("preset", p.id, c.preset === p.id,
+    t(`p_${p.id.replace("-", "_")}_t`), `${t(`p_${p.id.replace("-", "_")}_d`)} · ${Math.round(p.bufhrt.bytes_per_second / 1024)} KB ${t("per_sec")}`)).join("") +
+    (c.preset ? "" : choice("preset", "", true, t("p_custom_t"), `${t("p_custom_d")} · ${Math.round(c.bufhrt.bytes_per_second / 1024)} KB ${t("per_sec")}`));
+  $("passes").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option ${n === c.passes ? "selected" : ""}>${n}</option>`).join("");
+  $("winFrom").value = c.window.from;
+  $("winTo").value = c.window.to;
+  $("plUrl").value = c.playback.url || "";
+  $("plField").value = c.playback.field || "";
+  $("plIdle").value = (c.playback.idle || []).filter(x => x !== "").join(", ");
+  $("plUnreach").checked = !!c.playback.unreachable_is_idle;
+  checkedOK = false; $("saveBtn").disabled = true; $("checks").innerHTML = ""; $("saveOut").textContent = "";
+}
+
+function showSource(kind) {
+  $("srcPath").hidden = kind !== "path";
+  $("srcRsync").hidden = kind !== "rsync";
+}
+
+function collect() {
+  const c = JSON.parse(JSON.stringify(S.config));
+  const val = n => (document.querySelector(`input[name=${n}]:checked`) || {}).value;
+  c.music = $("music").value.trim().replace(/\/+$/, "") || c.music;
+  c.work_dir = $("workdir").textContent;
+  c.source.kind = val("srckind") || "self";
+  c.source.path = $("srcPathIn").value.trim();
+  c.source.remote = $("srcRemote").value.trim();
+  c.source.key = $("srcKey").value.trim();
+  c.source.port = parseInt($("srcPort").value, 10) || 0;
+  const pv = val("preset");
+  if (pv !== undefined) c.preset = pv;
+  c.passes = parseInt($("passes").value, 10) || 1;
+  c.window.from = $("winFrom").value || c.window.from;
+  c.window.to = $("winTo").value || c.window.to;
+  c.playback.url = $("plUrl").value.trim();
+  c.playback.field = $("plField").value.trim() || "engine_state";
+  // "" (no state at all) always counts as "not playing".
+  c.playback.idle = [...new Set($("plIdle").value.split(",").map(x => x.trim()).filter(Boolean)), ""];
+  c.playback.unreachable_is_idle = $("plUnreach").checked;
+  // Where this page is reachable — written into every album record, so
+  // players (e.g. amberPLAY) can link back here.
+  c.status_url = location.origin;
+  return c;
+}
+
+function workdirFor(music) {
+  const d = (S.drives || []).filter(x => music === x.mount || music.startsWith(x.mount.replace(/\/$/, "") + "/"))
+    .sort((a, b) => b.mount.length - a.mount.length)[0];
+  const root = d ? d.mount.replace(/\/$/, "") : music;
+  return (root || "") + "/.amberimprove-tmp";
+}
+
+function setMusic(p) {
+  $("music").value = p;
+  $("workdir").textContent = workdirFor(p);
+  invalidate();
+}
+
+function invalidate() { checkedOK = false; $("saveBtn").disabled = true; }
+
+async function browse(path) {
+  const r = await fetch("api/setup/dirs?path=" + encodeURIComponent(path));
+  const box = $("musicBrowser");
+  box.hidden = false;
+  if (!r.ok) { box.innerHTML = `<div class="err">${esc(await r.text())}</div>`; return; }
+  const dirs = await r.json() || [];
+  const parent = path.replace(/\/[^/]+\/?$/, "") || "/";
+  box.innerHTML = `<div data-go="${esc(parent)}">${t("up")}</div><div data-pick="${esc(path)}" class="ok">✓ ${t("choose")}: ${esc(path)}</div>` +
+    dirs.map(d => `<div data-go="${esc(path.replace(/\/$/, "") + "/" + d)}">📁 ${esc(d)}</div>`).join("");
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.text()).trim());
+  return r.json();
+}
+
+async function runCheck() {
+  $("checks").innerHTML = "…";
+  try {
+    const rep = await post("api/setup/check", collect());
+    const icon = l => l === "ok" ? `<span class="ok">✓</span>` : l === "warn" ? `<span class="warn">!</span>` : `<span class="err">✗</span>`;
+    $("checks").innerHTML = rep.checks.map(c => {
+      let d = c.detail || "";
+      if (c.key === "player" && c.level === "warn") d = t("ck_player_none");
+      if (c.key === "filesystem" && c.level === "warn") d = `${d} – ${t("ck_weak")}`;
+      return `<div>${icon(c.level)} ${esc(T[lang].ck[c.key] || c.key)} <span class="muted">${esc(d)}</span></div>`;
+    }).join("") + (rep.titles ? `<div class="nums" style="margin-top:6px">${t("nights")}(Math.ceil(rep.nights), rep.titles, rep.albums)}</div>` : "");
+    checkedOK = rep.ok;
+    $("saveBtn").disabled = !rep.ok;
+  } catch (e) {
+    $("checks").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+}
+
+async function runTiming() {
+  $("timingOut").textContent = "…";
+  $("timingBtn").disabled = true;
+  try {
+    const r = await post("api/setup/timing", collect());
+    $("timingOut").textContent = r.error ? (T[lang][r.error] || r.error) : t("timing_res")(r.millis, r.delayed, r.identical);
+    $("timingOut").className = "nums " + (!r.error && r.delayed === 0 && r.identical ? "ok" : "err");
+  } catch (e) {
+    $("timingOut").textContent = /night run/.test(e.message) ? t("timing_busy") : e.message;
+    $("timingOut").className = "nums err";
+  }
+  $("timingBtn").disabled = false;
+}
+
+async function save() {
+  try {
+    const r = await post("api/setup/save", collect());
+    $("saveOut").textContent = `${t("saved")} (${r.method})`;
+    $("saveOut").className = "hint ok";
+    S = null; data = null;
+    await loadSetup(); load();
+  } catch (e) {
+    $("saveOut").textContent = e.message;
+    $("saveOut").className = "hint err";
+  }
+}
+
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => showView(b.dataset.view));
+$("view-setup").addEventListener("change", e => {
+  const el = e.target;
+  if (el.name === "drive") setMusic(el.value);
+  if (el.name === "srckind") showSource(el.value);
+  if (el.type === "radio") document.querySelectorAll(`input[name=${el.name}]`).forEach(x => x.closest(".choice").classList.toggle("on", x.checked));
+  invalidate();
+});
+$("view-setup").addEventListener("input", invalidate);
+$("music").addEventListener("change", () => setMusic($("music").value.trim()));
+$("musicBrowse").onclick = () => browse($("music").value.trim() || "/");
+$("musicBrowser").onclick = e => {
+  const d = e.target.closest("[data-go],[data-pick]");
+  if (!d) return;
+  if (d.dataset.pick) { setMusic(d.dataset.pick); $("musicBrowser").hidden = true; }
+  else browse(d.dataset.go);
+};
+$("checkBtn").onclick = runCheck;
+$("timingBtn").onclick = runTiming;
+$("saveBtn").onclick = save;
+
+document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => {
+  lang = b.dataset.lang;
+  try { localStorage.setItem("amberimprove.lang", lang); } catch (e) {}
+  applyLang();
+});
+document.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => {
+  filter = b.dataset.filter;
+  document.querySelectorAll("[data-filter]").forEach(x => x.classList.toggle("on", x === b));
+  if (data) render();
+});
+$("albums").onclick = e => { const a = e.target.closest(".alb"); if (a) openAlbum(a.dataset.dir); };
+$("dlgClose").onclick = () => $("dlg").close();
+
+applyLang();
+load();
+if (location.hash === "#setup") showView("setup");
+setInterval(load, 10000);
+</script>
+</body>
+</html>

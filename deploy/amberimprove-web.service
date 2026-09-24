@@ -1,0 +1,12 @@
+[Unit]
+Description=amberIMPROVE Statusseite
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/amberimprove/bin/amberimprove -config /etc/amberimprove/config.json serve -listen :8093
+Restart=on-failure
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
