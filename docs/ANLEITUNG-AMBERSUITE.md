@@ -1,23 +1,24 @@
 # amberIMPROVE – Anleitung für amberSUITE
 
-amberIMPROVE ist ein **eigenes Programm** neben amberSUITE: Es schreibt deine
-Musikdateien nachts mit **frankls improvefile-Verfahren** bit-identisch neu,
-langsam und in genauem Takt. amberSUITE zeigt dir an, was schon improvt ist,
-und führt dich zur Status- und Setup-Seite. Umgekehrt achtet amberIMPROVE
-auf amberPLAY: Sobald du Musik hörst, pausiert es.
+amberIMPROVE schreibt deine Musikdateien nachts neu, Titel für Titel, mit
+**frankls improvefile-Verfahren**: bit-identisch, aber langsam und in genauem
+Takt. Jeder Titel wird danach bitgenau geprüft. Stimmt etwas nicht, bleibt die
+Datei, wie sie war. amberPLAY zeigt dir, was schon improvt ist.
 
-Alles Grundsätzliche (Voraussetzungen, Setup-Felder, was nachts passiert)
-steht in der **Anleitung ohne amberSUITE** – hier nur, was für amber-Nutzer
-anders oder zusätzlich ist.
+## Was du brauchst
 
----
+- Den **Linux-Rechner, an dem deine Musikplatte hängt** – das ist der
+  Rechner, dessen Musikordner amberLIBRARY liest (meist der mit amberPLAY).
+- Die Platte muss dort **direkt** hängen (USB, SATA, NVMe), nicht über eine
+  Netzfreigabe.
+- Empfehlung: Musikplatte mit **ext4** (auf FAT32/exFAT/NTFS hörte frankl
+  schlechtere Ergebnisse).
 
-## 1. Wo installieren?
+## Installieren
 
-Auf dem Rechner, **an dem deine Musikplatte hängt** – das ist der Rechner,
-dessen Musikordner amberLIBRARY liest (in amberSETUP unter „amberLIBRARY“ zu
-sehen, meist der Rechner mit amberPLAY). Installation wie in der
-Standalone-Anleitung, Kapitel 2:
+Passendes Paket laden: **amd64** für PC/NUC, **arm64** für Raspberry Pi.
+In amberPLAY findest du den Link unter **Einstellungen → Speicher →
+amberIMPROVE**.
 
 ```
 tar -xzf amberimprove-*-linux-*.tar.gz
@@ -25,69 +26,65 @@ cd amberimprove-*/
 sudo ./install.sh
 ```
 
-## 2. Einrichten – die Werte für amberSUITE
+Am Ende steht die Adresse der Setup-Seite, z. B. `http://192.168.1.50:8093`.
+Im Browser öffnen.
 
-Setup-Seite öffnen (`http://<rechner>:8093/#setup`, oder in amberPLAY unter
-**Einstellungen → Speicher → amberIMPROVE**, sobald es läuft):
+## Einrichten
 
-- **Musikordner:** derselbe Ordner, den amberLIBRARY liest (in amberPLAY unter
-  Einstellungen → Speicher zu sehen).
-- **Wiedergabe-Prüfung:** amberPLAY eintragen:
+1. **Laufwerk** anklicken, dann mit **Durchsuchen** den Musikordner wählen –
+   derselbe Ordner, den amberPLAY unter Einstellungen → Speicher zeigt.
+2. **Originale:** „Die Datei selbst“ (Normalfall).
+3. **Qualität:** frankl „sehr langsam“ (beste Kopie, etwa 3 GB Musik pro
+   Nacht), **1 Durchgang**. Mit **Takt auf diesem Rechner prüfen** testen: 0 verpasste Takte =
+   gut.
+4. **Zeitfenster:** z. B. 23:30 bis 06:30 – eine Zeit, in der niemand hört.
+5. **Wiedergabe-Prüfung:** amberPLAY eintragen:
 
-  ```
-  http://127.0.0.1:8082/api/v1/player/playback/state
-  ```
+   ```
+   http://127.0.0.1:8082/api/v1/player/playback/state
+   ```
 
-  (läuft amberPLAY auf einem anderen Rechner, dessen Adresse statt
-  `127.0.0.1`). Feld `engine_state`, Werte `idle, stopped`. Dann pausiert
-  amberIMPROVE, sobald amberPLAY spielt, und bricht einen laufenden Titel
-  sofort ab – die Datei bleibt dabei unverändert.
-- **Zeitfenster:** eine Zeit, in der niemand hört, z. B. 23:30–06:30.
-- **Qualität:** frankl „sehr langsam“, 1 Durchgang – wie in der Hauptanlage.
+   Läuft amberPLAY auf einem anderen Rechner, dessen Adresse statt
+   `127.0.0.1`. Sobald amberPLAY spielt, pausiert amberIMPROVE.
+6. **Prüfen**, dann **Speichern**. Ab dem nächsten Zeitfenster geht es los.
 
-**Speichern.** amberIMPROVE merkt sich dabei die Adresse, unter der du die
-Seite geöffnet hast – darüber findet amberPLAY den Weg zurück.
+## Was du in amberPLAY siehst
 
-## 3. In amberPLAY sehen
+- **Zauberstab neben dem Albumtitel:** bernsteinfarben = alle Titel improvt,
+  gedämpft mit Zahl (z. B. 3/12) = angefangen, kein Zauberstab = noch nicht
+  dran.
+- **Klick auf den Zauberstab:** je Titel Datum und verpasste Takte
+  (0 = perfekt), dazu **„amberIMPROVE öffnen“**.
+- **Einstellungen → Speicher → amberIMPROVE:** führt immer zur Status- und
+  Setup-Seite.
 
-- **Zauberstab im Albumkopf**, neben dem Titel:
-  - bernsteinfarben – alle Titel des Albums improvt
-  - gedämpft mit Zahl, z. B. „3/12“ – angefangen
-  - kein Symbol – noch nicht dran
-- **Klick auf den Zauberstab:** je Titel Datum, Verfahren und verpasste Takte
-  (0 = jeder Block im Takt), Rohdaten aufklappbar, und
-  **„amberIMPROVE öffnen ↗“** zur Statusseite.
-- **Einstellungen → Speicher → amberIMPROVE:** der feste Weg zur Status- und
-  Setup-Seite – auch bevor das erste Album fertig ist. Ist amberIMPROVE nicht
-  installiert, steht dort der Link zum Download.
+Perlen, Tags und Hörverlauf bleiben erhalten. Bearbeitest du Tags einer
+Datei, kommt sie noch einmal dran.
 
-Die Suite-App (Mac, iPad) zeigt das nach ihrem nächsten Update; im Browser
-sofort.
+**Sicherung:** amberIMPROVE behält Zeitstempel und Größe – eine Sicherung per
+rsync kopiert improvte Dateien nicht neu. Leg die Sicherung am besten vor das
+Zeitfenster (z. B. 22:30).
 
-## 4. Zusammenspiel mit Sicherung und Bibliothek
+## NAS (Synology & Co.)
 
-- amberIMPROVE behält **Zeitstempel und Größe** jeder Datei. Eine Sicherung
-  per rsync sieht improvte Dateien deshalb als unverändert und kopiert sie
-  nicht neu.
-- Lege die Sicherung **vor** das Zeitfenster (z. B. 22:30): dann sind neue
-  Alben schon gesichert, bevor sie improvt werden.
-- amberLIBRARY sieht nur die kleinen `.amberimprove.json`-Dateien; die Titel
-  bleiben dieselben, mit denselben Kennungen – Perlen, Tags und Hörverlauf
-  bleiben erhalten.
-- Bearbeitest du Tags in einer Datei, gilt sie nicht mehr als improvt und
-  kommt in einer der nächsten Nächte wieder dran.
+Liegt deine Musik auf einem NAS, gehört amberIMPROVE auf das NAS:
 
-## 5. Mehrere Rechner, NAS
+1. Synology: im Paket-Zentrum den **Container Manager** installieren
+   (QNAP, ZimaOS, Unraid: deren Container-Verwaltung).
+2. Neues **Projekt** anlegen und die mitgelieferte `docker-compose.yml`
+   einfügen.
+3. Die Zeile `- /volume1/music:/music` auf deinen Musikordner ändern.
+4. Starten, `http://<nas>:8093` öffnen, als Musikordner **`/music`** wählen,
+   weiter wie oben. Bei der Wiedergabe-Prüfung die Adresse deines
+   amberPLAY-Rechners eintragen.
 
-- Liegt deine Musik auf einem **NAS** (Synology & Co.) und amberLIBRARY liest
-  sie von dort, gehört amberIMPROVE **auf das NAS** – per Container, siehe
-  Standalone-Anleitung, Kapitel 7. Über eine Netzfreigabe improven geht
-  nicht.
-- amberPLAY findet die Statusseite auch dort – über die Adresse, die
-  amberIMPROVE beim Speichern im Setup mitbekommen hat.
+## Aktualisieren und entfernen
+
+- Update: neues Paket entpacken, `sudo ./install.sh`. Einstellungen bleiben.
+- Entfernen: `sudo ./uninstall.sh`. Deine Musik bleibt, wie sie ist.
 
 ---
 
-Freie Software (GPL-3.0-or-later): <https://github.com/tomonwheels/amberimprove>.
-Verfahren: **frankl** (frankl_stereo); Ablauf mit Prüfung nach jedem Durchgang
-nach den **nsc-Skripten von Harald Scherer** (aktives-hoeren.de).
+Freie Software (GPL-3.0-or-later), <https://github.com/tomonwheels/amberimprove>.
+Verfahren von **frankl**, Ablauf nach den Skripten von **Harald Scherer**
+(aktives-hoeren.de).
