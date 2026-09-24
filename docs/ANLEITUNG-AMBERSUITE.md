@@ -11,6 +11,8 @@ Datei, wie sie war. amberPLAY zeigt dir, was schon improvt ist.
   Rechner, dessen Musikordner amberLIBRARY liest (meist der mit amberPLAY).
 - Die Platte muss dort **direkt** hängen (USB, SATA, NVMe), nicht über eine
   Netzfreigabe.
+- **Jedes übliche Linux mit systemd:** DietPi, Raspberry Pi OS, Debian,
+  Ubuntu, Arch u. a. Das Paket bringt alles mit, nichts muss kompiliert werden.
 - Empfehlung: Musikplatte mit **ext4** (auf FAT32/exFAT/NTFS hörte frankl
   schlechtere Ergebnisse).
 

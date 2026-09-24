@@ -12,6 +12,8 @@ Datei, wie sie war.
 - Nicht über das Netz: Eine Netzfreigabe (SMB/NFS) geht nicht – der Takt
   käme nicht auf der Platte an.
 - macOS und Windows gehen nicht.
+- **Jedes übliche Linux mit systemd:** DietPi, Raspberry Pi OS, Debian,
+  Ubuntu, Arch u. a. Das Paket bringt alles mit, nichts muss kompiliert werden.
 - Empfehlung: Musikplatte mit **ext4** (auf FAT32/exFAT/NTFS hörte frankl
   schlechtere Ergebnisse).
 
