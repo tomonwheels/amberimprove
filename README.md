@@ -31,7 +31,7 @@ For every title:
 ## Guides (German)
 
 - [docs/ANLEITUNG-STANDALONE.md](docs/ANLEITUNG-STANDALONE.md) — install and
-  set up on any Linux machine, plus Synology/NAS via container
+  set up on any Linux machine, plus Synology/UGREEN/NAS via container
 - [docs/ANLEITUNG-AMBERSUITE.md](docs/ANLEITUNG-AMBERSUITE.md) — together with
   amberSUITE (wand in amberPLAY, playback check)
 
@@ -44,7 +44,7 @@ tar -xzf amberimprove-*-linux-*.tar.gz && cd amberimprove-*/ && sudo ./install.s
 ```
 
 and open the printed address (`http://<machine>:8093/#setup`). NAS systems
-(Synology Container Manager, QNAP, ZimaOS, Unraid): use
+(Synology Container Manager, UGREEN UGOS Pro, QNAP, ZimaOS, Unraid): use
 `deploy/docker-compose.yml` (image `ghcr.io/tomonwheels/amberimprove`).
 
 ## Commands

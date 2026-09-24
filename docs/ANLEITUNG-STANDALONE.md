@@ -52,13 +52,15 @@ Datum und verpasste Takte (0 = perfekt).
 
 Wird eine Datei später verändert (z. B. neue Tags), kommt sie noch einmal dran.
 
-## NAS (Synology & Co.)
+## NAS (Synology, UGREEN & Co.)
 
-1. Synology: im Paket-Zentrum den **Container Manager** installieren
-   (QNAP, ZimaOS, Unraid: deren Container-Verwaltung).
-2. Neues **Projekt** anlegen und die mitgelieferte `docker-compose.yml`
+1. Synology: im Paket-Zentrum den **Container Manager** installieren.
+   UGREEN (UGOS Pro): im App Center die App **Docker** installieren.
+   QNAP, ZimaOS, Unraid: deren Container-Verwaltung.
+2. Neues **Projekt** anlegen (UGREEN: in der Docker-App unter „Projekt“) und die mitgelieferte `docker-compose.yml`
    einfügen.
-3. Die Zeile `- /volume1/music:/music` auf deinen Musikordner ändern.
+3. Die Zeile `- /volume1/music:/music` auf deinen Musikordner ändern
+   (Synology und UGREEN: `/volume1/<Freigabe>/…`).
 4. Starten, `http://<nas>:8093` öffnen, als Musikordner **`/music`** wählen,
    weiter wie oben.
 

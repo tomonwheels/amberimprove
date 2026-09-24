@@ -1,4 +1,4 @@
-# amberIMPROVE im Container (Synology Container Manager, QNAP, ZimaOS, Unraid …)
+# amberIMPROVE im Container (Synology Container Manager, UGREEN UGOS Pro, QNAP, ZimaOS, Unraid …)
 #
 # 1. Den Pfad hinter „/music“ auf den eigenen Musikordner setzen.
 # 2. Starten, dann im Browser http://<nas>:8093/#setup öffnen.
@@ -13,7 +13,7 @@ services:
     environment:
       TZ: Europe/Berlin          # das Zeitfenster gilt in dieser Zeitzone
     volumes:
-      - /volume1/music:/music    # ← eigener Musikordner (Synology: /volume1/…)
+      - /volume1/music:/music    # ← eigener Musikordner (Synology/UGREEN: /volume1/…)
       - ./amberimprove-config:/config
     # Die Originale kommen für jeden Titel in den Arbeitsspeicher (/dev/shm).
     # Docker gibt standardmäßig nur 64 MB — für lange Hi-Res-Titel zu wenig.

@@ -1,5 +1,5 @@
 # amberIMPROVE as a container — for NAS systems without systemd (Synology
-# Container Manager, QNAP Container Station, ZimaOS, Unraid, …).
+# Container Manager, UGREEN UGOS Pro, QNAP Container Station, ZimaOS, Unraid, …).
 #
 # The build expects the static bufhrt in build/bufhrt/bufhrt-linux-<arch>
 # (see scripts/package.sh).
