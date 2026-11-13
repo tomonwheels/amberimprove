@@ -20,13 +20,54 @@ For every title:
    match the file on the medium. Otherwise the title is skipped, never
    overwritten.
 4. **Passes:** `bufhrt --interval` writes the file slowly and in precise timing
-   onto the medium, several times (default 3). After each pass the file is
+   onto the medium, once or several times (default 1). After each pass the file is
    flushed, dropped from the page cache, read back from the medium and compared
    (SHA-256). Up to 10 retries per pass. bufhrt's `delayed block` messages are
    counted and recorded: they show how evenly the pass was written.
+   Instead of bufhrt, frankl's `improvedirect` can write the passes — see
+   [Two procedures](#two-procedures).
 5. **Replace:** the last pass file is renamed onto the original name (same
    filesystem, metadata only) with the original's time, owner and mode.
 6. **Record:** the entry goes into the album's `.amberimprove.json`.
+
+## Two procedures
+
+Since 0.2.0 the configuration (`"procedure"`, or **Procedure** on the setup
+page) chooses which of frankl's programs writes a pass. Everything around it
+is the same for both: guards and time window, bit-identity check after every
+pass, retries, replacement by rename, and a title that is interrupted stays
+exactly as it was and is started anew the next night.
+
+| | `bufhrt` (default) | `direct` |
+|---|---|---|
+| Program | `bufhrt --interval` (frankl_stereo v0.9.3) | `improvedirect` (frankl_stereo v0.9.4) |
+| Data path | original in RAM, written from there | small blocks read and written in turns, straight from and to the medium (`O_DIRECT`, no page cache) |
+| Pass 1 reads | the original in RAM | the title on the medium (verified against the original first) |
+| frankl's set | 10 loops/s, 188044 bytes/s, 256 out-copies | `-o -i -w`, 10 loops/s, 40960 bytes/s (one 4096-byte page per loop), fdatasync every 10 loops, 128 copies |
+| Pure writing time | about 5.6 s per MiB | about 25.6 s per MiB |
+| Recorded timing misses | `delayed block` messages | `timer reset` count of `improvedirect -v` |
+
+`improvedirect` is frankl's newer program: it "reads and writes small blocks in
+turns, instead of loading music data into RAM first" (frankl_stereo `CHANGES`,
+0.9.3 to 0.9.4). The default set is the line from his `scripts/improvefile`
+("very good but slow"):
+
+```
+improvedirect -v -o -i -w "$1" "$2" 10 40960 10 128
+```
+
+It is about 4.6 times slower than bufhrt's very slow set, so far fewer titles
+fit into a night, and a title must fit into one window. The drive must allow
+`O_DIRECT` (the setup check asks), and the service must run as root or own the
+music files (`improvedirect` opens them with `O_NOATIME`). The times above are
+derived from the parameters; the timing test on the setup page measures a
+1 MB sample on your machine.
+
+Changing the procedure changes the recorded method name
+(`frankl-0.9.4/direkt/…` instead of `frankl-0.9.3/…`): titles improved with
+the other procedure count as "older method" and are written again. All
+parameters of the `direct` block in `deploy/config.example.json` can be set by
+hand; the album record lists them under `params` next to `"procedure"`.
 
 ## Guides (German)
 
@@ -76,9 +117,10 @@ systemd units: `deploy/amberimprove.service` (the worker) and
   NAS users run amberIMPROVE on the NAS itself (if it allows) or attach the
   drive to a small Linux box. The *originals* may come over the network.
 - The Linux machine can be a NUC, Raspberry Pi, NAS
-  with Linux, or any PC booted from a stick). bufhrt is built on that machine
-  (`gcc`, `make`, `git`). macOS and Windows are not supported: bufhrt is a
-  Linux program.
+  with Linux, or any PC booted from a stick). The release packages bring
+  bufhrt and improvedirect along; from source they are built on that machine
+  (`gcc`, `make`, `git`). macOS and Windows are not supported: both are
+  Linux programs.
 - The originals: **the file itself** (no second copy needed, verified bit by
   bit), a second copy in a local/mounted folder, or another machine via
   rsync over ssh.
@@ -86,16 +128,22 @@ systemd units: `deploy/amberimprove.service` (the worker) and
   amberPLAY). Players without such a URL are not detected — then only the time
   window protects.
 - The status page runs as root and can change the configuration: keep it in
-  your home network. bufhrt's path and extra ssh options can only be changed in
-  the file, never through the page.
+  your home network. The paths of bufhrt and improvedirect and extra ssh
+  options can only be changed in the file, never through the page.
 
-## bufhrt
+## bufhrt and improvedirect
 
-amberIMPROVE uses its own bufhrt, built from frankl's unmodified sources:
+amberIMPROVE uses its own bufhrt and improvedirect, built from frankl's
+unmodified sources:
 
 ```
-sudo scripts/build-frankl.sh v0.9.3     # → /opt/amberimprove/bin/bufhrt
+sudo scripts/build-frankl.sh     # → /opt/amberimprove/bin/bufhrt         (v0.9.3)
+                                 #   /opt/amberimprove/bin/improvedirect  (v0.9.4)
 ```
+
+bufhrt stays at v0.9.3 (commit `f419730`), the version the recorded method
+name `frankl-0.9.3/…` refers to; improvedirect comes from v0.9.4 (commit
+`df48764`), the first release that contains it.
 
 Choose the bufhrt parameters so that your machine keeps the timing: run a pass
 and look at the recorded `delayed_blocks` — 0 means every block was written on
@@ -113,9 +161,14 @@ GOOS=linux GOARCH=amd64 go build -o amberimprove ./cmd/amberimprove
 
 **GPL-3.0-or-later.** This program is free software.
 
-- The procedure is **frankl's** (`improvefile` / `bufhrt` from his stereo
-  utilities, GPL-3.0-or-later): <https://github.com/frankl-audio/frankl_stereo>.
-  amberIMPROVE runs bufhrt as a separate program.
+- The procedure is **frankl's** (`improvefile` with `bufhrt` and
+  `improvedirect` from his stereo utilities, Copyright frankl,
+  GPL-3.0-or-later): <https://github.com/frankl-audio/frankl_stereo>.
+  amberIMPROVE runs both as separate, unmodified programs — bufhrt from tag
+  v0.9.3 (commit `f41973039f49ae6b6e3f729691c4cfce2bad9da0`), improvedirect
+  from tag v0.9.4 (commit `df48764f32fd48b2576afbefe40b13d1e4f498e9`). The
+  release packages contain them statically linked; `QUELLEN.txt` in each
+  package names the sources.
 - The pass structure with a bit-identity check after every pass follows the
   **nsc scripts by Harald Scherer** (nihil.sine.causa, GPL-3.0-or-later):
   <https://github.com/nihilsinecausa/nsc>.

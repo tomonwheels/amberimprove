@@ -34,8 +34,9 @@ Im Browser öffnen – auf jedem Gerät im Heimnetz.
 
 1. **Laufwerk** anklicken, dann mit **Durchsuchen** den Musikordner wählen.
 2. **Originale:** „Die Datei selbst“ (Normalfall).
-3. **Qualität:** frankl „sehr langsam“ (beste Kopie, etwa 3 GB Musik pro
-   Nacht), **1 Durchgang**. Mit **Takt auf diesem Rechner prüfen** testen: 0 verpasste Takte =
+3. **Verfahren:** „Über den Arbeitsspeicher (bufhrt)“ (Voreinstellung) – zum
+   zweiten Verfahren siehe unten. **Qualität:** frankl „sehr langsam“ (beste
+   Kopie, etwa 3 GB Musik pro Nacht), **1 Durchgang**. Mit **Takt auf diesem Rechner prüfen** testen: 0 verpasste Takte =
    gut.
 4. **Zeitfenster:** z. B. 23:30 bis 06:30 – eine Zeit, in der niemand hört.
 5. **Wiedergabe-Prüfung:** leer lassen, oder die Statusadresse deines Players
@@ -67,6 +68,38 @@ Wird eine Datei später verändert (z. B. neue Tags), kommt sie noch einmal dran
 Hinweis: NAS-Platten laufen meist im RAID. Ob das Verfahren dort genauso
 wirkt, musst du hören.
 
+## Zwei Verfahren
+
+Unter **Verfahren** wählst du, welches Programm von frankl schreibt:
+
+- **Über den Arbeitsspeicher (bufhrt)** – das bisherige Verfahren und die
+  Voreinstellung. Der Titel wird in den Arbeitsspeicher geladen und von dort
+  im Takt auf die Platte geschrieben.
+- **Direkt (improvedirect)** – neu seit amberIMPROVE 0.2.0, frankls Programm
+  `improvedirect` (frankl_stereo ab 0.9.4). Es liest und schreibt abwechselnd
+  kleine Blöcke direkt von der Platte und auf die Platte, am Zwischenspeicher
+  des Systems vorbei („direct read“, „direct write“). Voreingestellt sind
+  frankls eigene Werte: 10 Takte je Sekunde, eine Seite (4096 Bytes) je Takt,
+  128 Kopien je Block.
+
+Was bei „Direkt“ anders ist:
+
+- **Es ist deutlich langsamer:** 40 KB je Sekunde statt 184 KB bei „sehr
+  langsam“ – rund 26 Sekunden je MB. In eine Nacht von sieben Stunden passen
+  rechnerisch etwa 0,8 GB Musik (statt etwa 3 GB), ein einzelner Titel darf
+  dann höchstens etwa 850 MB groß sein. Größere Titel meldet das Protokoll
+  und lässt sie aus.
+- Alles andere bleibt gleich: Zeitfenster, Wiedergabe-Prüfung, bitgenaue
+  Prüfung nach jedem Durchgang. Endet das Zeitfenster mitten in einem Titel,
+  wird er abgebrochen, die Datei bleibt, wie sie war, und in der nächsten
+  Nacht kommt er von vorn dran.
+- Die Platte muss direktes Lesen und Schreiben erlauben (ext4 und die anderen
+  üblichen Linux-Dateisysteme tun das). **Prüfen** sagt es dir.
+- **Wechselst du das Verfahren, werden schon improvte Titel noch einmal
+  geschrieben** – sie zählen dann als „älteres Verfahren“.
+
+Welches besser klingt, entscheidet dein Ohr.
+
 ## Aktualisieren und entfernen
 
 - Update: neues Paket entpacken, `sudo ./install.sh`. Einstellungen bleiben.
@@ -75,5 +108,8 @@ wirkt, musst du hören.
 ---
 
 Freie Software (GPL-3.0-or-later), <https://github.com/tomonwheels/amberimprove>.
-Verfahren von **frankl**, Ablauf nach den Skripten von **Harald Scherer**
-(aktives-hoeren.de).
+Verfahren und die Programme `bufhrt` und `improvedirect` von **frankl**
+(frankl's stereo utilities, GPL-3.0-or-later,
+<https://github.com/frankl-audio/frankl_stereo>; unverändert mitgeliefert:
+bufhrt aus v0.9.3, improvedirect aus v0.9.4), Ablauf nach den Skripten von
+**Harald Scherer** (aktives-hoeren.de).
