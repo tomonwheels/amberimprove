@@ -164,6 +164,12 @@ input[type=text]{width:100%}
     </div>
 
     <div class="card">
+      <h2 data-i18n="s_proc"></h2>
+      <div class="choices" id="procs"></div>
+      <div class="hint" data-i18n="s_proc_hint"></div>
+    </div>
+
+    <div class="card">
       <h2 data-i18n="s_quality"></h2>
       <div class="choices" id="presets"></div>
       <div class="field row">
@@ -237,6 +243,11 @@ const T = {
     src_path_t: "Ein Ordner auf diesem Rechner", src_path_d: "Eine zweite Kopie, z. B. eine eingehängte Freigabe (SMB/NFS) oder eine zweite Platte.",
     src_rsync_t: "Ein anderer Rechner (rsync über ssh)", src_rsync_d: "Eine Sicherung auf einem Server oder NAS. Der Schlüssel muss dort nur lesen dürfen.",
     s_src_path: "Ordner mit den Originalen", s_src_remote: "Quelle (benutzer@rechner:/pfad)", s_src_key: "ssh-Schlüssel", s_src_port: "Port",
+    s_proc: "Verfahren",
+    proc_bufhrt_t: "Über den Arbeitsspeicher (bufhrt)", proc_bufhrt_d: "Das bisherige Verfahren: Der Titel wird in den Arbeitsspeicher geladen und von dort im Takt auf die Platte geschrieben.",
+    proc_direct_t: "Direkt (improvedirect)", proc_direct_d: "Neu von frankl: liest und schreibt abwechselnd kleine Blöcke direkt von der Platte und auf die Platte, am Zwischenspeicher des Systems vorbei. Deutlich langsamer.",
+    s_proc_hint: "Beide Programme sind von frankl. Wer das Verfahren wechselt, lässt schon improvte Titel noch einmal schreiben – sie zählen dann als „älteres Verfahren“.",
+    pd_sehr_langsam_t: "frankl „sehr gut, aber langsam“", pd_sehr_langsam_d: "frankls eigene Einstellung. 10 Takte je Sekunde, eine Seite (4096 Bytes) je Takt, 128 Kopien je Block, direktes Lesen und Schreiben.",
     s_quality: "Qualität",
     p_sehr_langsam_t: "frankl „sehr langsam“", p_sehr_langsam_d: "Die beste Kopie laut Forumstests. 10 Takte je Sekunde, 256 Kopien je Block.",
     p_langsam_t: "Langsam", p_langsam_d: "100 Takte je Sekunde, 10 Kopien je Block.",
@@ -244,7 +255,7 @@ const T = {
     p_custom_t: "Eigene Werte", p_custom_d: "Von Hand in der Konfigurationsdatei gesetzt",
     per_sec: "je Sekunde",
     s_passes: "Durchgänge je Titel",
-    s_timing: "Takt auf diesem Rechner prüfen", s_timing_hint: "Schreibt 1 MB zur Probe mit der gewählten Qualität. 0 verpasste Takte heißt: dieser Rechner hält den Takt.",
+    s_timing: "Takt auf diesem Rechner prüfen", s_timing_hint: "Schreibt 1 MB zur Probe mit der gewählten Qualität. 0 verpasste Takte heißt: dieser Rechner hält den Takt. Beim Verfahren „Direkt“ dauert die Probe etwa eine halbe Minute.",
     timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · verpasste Takte: ${d} · ${ok ? "bitgleich" : "NICHT bitgleich"}`,
     timing_busy: "gerade nicht möglich (Nachtlauf arbeitet)",
     setup_unloaded: "Einstellungen nicht geladen – Seite neu laden.",
@@ -256,7 +267,7 @@ const T = {
     saved: "Gespeichert. Gilt ab dem nächsten Titel.",
     nights: (n,t,a) => `${t} Titel in ${a} Alben · mit dieser Einstellung ca. ${n} Nächte für alles`,
     ck: { config: "Einstellungen", music: "Musikordner (Titel / Alben)", filesystem: "Dateisystem", workdir: "Arbeitsordner auf demselben Laufwerk",
-          source: "Originale erreichbar", bufhrt: "bufhrt vorhanden", player: "Player antwortet",
+          source: "Originale erreichbar", bufhrt: "bufhrt vorhanden", improvedirect: "improvedirect vorhanden", direct_io: "Platte erlaubt direktes Lesen und Schreiben", player: "Player antwortet",
           network: "Musik liegt auf einem Netzlaufwerk – improvefile wirkt nur auf direkt angeschlossenen Platten (USB/SATA/NVMe). Bitte auf dem Rechner einrichten, an dem die Platte hängt." },
     ck_player_none: "keine Prüfung – nur das Zeitfenster schützt",
     ck_weak: "FAT/exFAT/NTFS: funktioniert, frankl hörte auf ext4 aber bessere Ergebnisse",
@@ -300,6 +311,11 @@ const T = {
     src_path_t: "A folder on this machine", src_path_d: "A second copy, e.g. a mounted share (SMB/NFS) or a second drive.",
     src_rsync_t: "Another machine (rsync over ssh)", src_rsync_d: "A backup on a server or NAS. The key only needs read access there.",
     s_src_path: "Folder with the originals", s_src_remote: "Source (user@host:/path)", s_src_key: "ssh key", s_src_port: "Port",
+    s_proc: "Procedure",
+    proc_bufhrt_t: "Through RAM (bufhrt)", proc_bufhrt_d: "The procedure used so far: the title is loaded into RAM and written from there to the drive in precise timing.",
+    proc_direct_t: "Direct (improvedirect)", proc_direct_d: "New from frankl: reads and writes small blocks in turns, straight from the drive and to the drive, bypassing the system's cache. Much slower.",
+    s_proc_hint: "Both programs are frankl's. Changing the procedure makes titles that are already improved be written again – they then count as “older method”.",
+    pd_sehr_langsam_t: "frankl “very good but slow”", pd_sehr_langsam_d: "frankl's own setting. 10 loops per second, one page (4096 bytes) per loop, 128 copies per block, direct reading and writing.",
     s_quality: "Quality",
     p_sehr_langsam_t: "frankl “very slow”", p_sehr_langsam_d: "The best copy according to the forum tests. 10 loops per second, 256 copies per block.",
     p_langsam_t: "Slow", p_langsam_d: "100 loops per second, 10 copies per block.",
@@ -307,7 +323,7 @@ const T = {
     p_custom_t: "Custom values", p_custom_d: "Set by hand in the configuration file",
     per_sec: "per second",
     s_passes: "Passes per title",
-    s_timing: "Test timing on this machine", s_timing_hint: "Writes 1 MB with the chosen quality. 0 missed blocks means this machine keeps the timing.",
+    s_timing: "Test timing on this machine", s_timing_hint: "Writes 1 MB with the chosen quality. 0 missed blocks means this machine keeps the timing. With the “Direct” procedure the test takes about half a minute.",
     timing_res: (ms,d,ok) => `${(ms/1000).toFixed(1)} s · missed blocks: ${d} · ${ok ? "bit-identical" : "NOT bit-identical"}`,
     timing_busy: "not possible right now (night run is working)",
     setup_unloaded: "Settings not loaded – please reload the page.",
@@ -319,7 +335,7 @@ const T = {
     saved: "Saved. Applies from the next title on.",
     nights: (n,t,a) => `${t} titles in ${a} albums · with these settings about ${n} nights for everything`,
     ck: { config: "Settings", music: "Music folder (titles / albums)", filesystem: "Filesystem", workdir: "Work folder on the same drive",
-          source: "Originals reachable", bufhrt: "bufhrt present", player: "Player answers",
+          source: "Originals reachable", bufhrt: "bufhrt present", improvedirect: "improvedirect present", direct_io: "Drive allows direct reading and writing", player: "Player answers",
           network: "Music is on a network drive – improvefile only works on directly attached drives (USB/SATA/NVMe). Please set it up on the machine the drive is attached to." },
     ck_player_none: "no check – only the time window protects",
     ck_weak: "FAT/exFAT/NTFS: works, but frankl heard better results on ext4",
@@ -513,9 +529,15 @@ function fillSetup() {
   $("srcPort").value = c.source.port || "";
   showSource(c.source.kind);
 
-  $("presets").innerHTML = S.presets.map(p => choice("preset", p.id, c.preset === p.id,
-    t(`p_${p.id.replace("-", "_")}_t`), `${t(`p_${p.id.replace("-", "_")}_d`)} · ${Math.round(p.bufhrt.bytes_per_second / 1024)} KB ${t("per_sec")}`)).join("") +
-    (c.preset ? "" : choice("preset", "", true, t("p_custom_t"), `${t("p_custom_d")} · ${Math.round(c.bufhrt.bytes_per_second / 1024)} KB ${t("per_sec")}`));
+  // Verfahren (seit 0.2.0, 13.11.2026): bufhrt wie bisher oder frankls
+  // improvedirect. Jedes Verfahren hat seine eigenen Qualitätsstufen.
+  const direct = c.procedure === "direct";
+  $("procs").innerHTML = ["bufhrt", "direct"].map(k => choice("proc", k, direct === (k === "direct"), t(`proc_${k}_t`), t(`proc_${k}_d`))).join("");
+  const kb = b => `${Math.round(b / 1024)} KB ${t("per_sec")}`;
+  const pre = direct ? "pd" : "p", blk = direct ? "direct" : "bufhrt";
+  $("presets").innerHTML = presetsOf(c.procedure).map(p => choice("preset", p.id, c.preset === p.id,
+    t(`${pre}_${p.id.replace("-", "_")}_t`), `${t(`${pre}_${p.id.replace("-", "_")}_d`)} · ${kb(p[blk].bytes_per_second)}`)).join("") +
+    (c.preset ? "" : choice("preset", "", true, t("p_custom_t"), `${t("p_custom_d")} · ${kb(c[blk].bytes_per_second)}`));
   $("passes").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option ${n === c.passes ? "selected" : ""}>${n}</option>`).join("");
   $("winFrom").value = c.window.from;
   $("winTo").value = c.window.to;
@@ -524,6 +546,21 @@ function fillSetup() {
   $("plIdle").value = (c.playback.idle || []).filter(x => x !== "").join(", ");
   $("plUnreach").checked = !!c.playback.unreachable_is_idle;
   checkedOK = false; $("saveBtn").disabled = true; $("checks").innerHTML = ""; $("saveOut").textContent = "";
+}
+
+// Die Qualitätsstufen des Verfahrens (vom Server: presets, direct_presets).
+function presetsOf(proc) {
+  return (proc === "direct" ? S.direct_presets : S.presets) || [];
+}
+
+// Verfahren gewechselt: die Stufen des anderen Verfahrens zeigen. Gibt es
+// die gewählte Stufe dort nicht, gilt dessen erste (frankls Einstellung).
+function setProc(proc) {
+  const c = collect();
+  c.procedure = proc;
+  if (!presetsOf(proc).some(p => p.id === c.preset)) c.preset = (presetsOf(proc)[0] || {}).id || "";
+  S.config = c;
+  fillSetup();
 }
 
 function showSource(kind) {
@@ -541,6 +578,7 @@ function collect() {
   c.source.remote = $("srcRemote").value.trim();
   c.source.key = $("srcKey").value.trim();
   c.source.port = parseInt($("srcPort").value, 10) || 0;
+  c.procedure = val("proc") || c.procedure || "bufhrt";
   const pv = val("preset");
   if (pv !== undefined) c.preset = pv;
   c.passes = parseInt($("passes").value, 10) || 1;
@@ -642,6 +680,7 @@ $("view-setup").addEventListener("change", e => {
   const el = e.target;
   if (el.name === "drive") setMusic(el.value);
   if (el.name === "srckind") showSource(el.value);
+  if (el.name === "proc") { setProc(el.value); return; }
   if (el.type === "radio") document.querySelectorAll(`input[name=${el.name}]`).forEach(x => x.closest(".choice").classList.toggle("on", x.checked));
   invalidate();
 });

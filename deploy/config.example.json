@@ -16,6 +16,7 @@
   "retries": 10,
   "preset": "sehr-langsam",
   "method": "frankl-0.9.3/sehr-langsam/1x",
+  "procedure": "bufhrt",
 
   "bufhrt": {
     "program": "/opt/amberimprove/bin/bufhrt",
@@ -30,6 +31,22 @@
     "dsyncs_per_second": 1,
     "out_copies": 256,
     "shift": 0
+  },
+
+  "direct": {
+    "program": "/opt/amberimprove/bin/improvedirect",
+    "cpu": -1,
+    "rt_prio": 0,
+    "loops_per_second": 10,
+    "bytes_per_second": 40960,
+    "sync_loops": 10,
+    "out_copies": 128,
+    "direct_write": true,
+    "direct_read": true,
+    "dsync": false,
+    "warmup": true,
+    "preallocate": false,
+    "align": 0
   },
 
   "window": { "from": "23:30", "to": "06:30", "blocked": [] },
