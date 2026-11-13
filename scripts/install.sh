@@ -3,7 +3,8 @@
 #
 #   sudo ./install.sh
 #
-# Installs the program and frankl's bufhrt to /opt/amberimprove, the two
+# Installs the program and frankl's bufhrt and improvedirect to
+# /opt/amberimprove, the two
 # systemd services, and starts them. The configuration is made afterwards on
 # the setup page in the browser (the address is printed at the end).
 # An existing configuration (/etc/amberimprove) and all album records stay.
@@ -35,6 +36,11 @@ mv /opt/amberimprove/bin/amberimprove.neu /opt/amberimprove/bin/amberimprove
 install -m 755 bin/bufhrt /opt/amberimprove/bin/bufhrt.neu
 mv /opt/amberimprove/bin/bufhrt.neu /opt/amberimprove/bin/bufhrt
 /opt/amberimprove/bin/bufhrt --version
+# frankl's improvedirect (since 0.2.0) for the optional "direct" procedure.
+# Without arguments it prints its help; the first line names the version.
+install -m 755 bin/improvedirect /opt/amberimprove/bin/improvedirect.neu
+mv /opt/amberimprove/bin/improvedirect.neu /opt/amberimprove/bin/improvedirect
+/opt/amberimprove/bin/improvedirect 2>&1 | head -n 1 || true
 
 echo "== Dienste"
 install -m 644 systemd/amberimprove.service /etc/systemd/system/amberimprove.service
