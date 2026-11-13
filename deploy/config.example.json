@@ -6,7 +6,7 @@
 
   "source": {
     "kind": "rsync",
-    "remote": "amberimprove@192.168.178.125:/media/sdb2-ata-Samsung_SSD_970/Backup/Musik",
+    "remote": "amberimprove@nas.local:/volume1/Musik",
     "key": "/etc/amberimprove/quelle_key",
     "port": 22,
     "ssh": ["-o", "UserKnownHostsFile=/etc/amberimprove/known_hosts"]
