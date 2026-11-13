@@ -28,16 +28,20 @@ type Manifest struct {
 
 // Entry records one improved title.
 type Entry struct {
-	Size       int64          `json:"size"`
-	Mtime      time.Time      `json:"mtime"`
-	SHA256     string         `json:"sha256"`
-	ImprovedAt time.Time      `json:"improved_at"`
-	Method     string         `json:"method"`
-	Passes     int            `json:"passes"`
-	Host       string         `json:"host"`
-	Params     map[string]any `json:"params"`
-	// Delayed counts blocks bufhrt wrote late, summed over all passes
-	// (0 = every block on time).
+	Size       int64     `json:"size"`
+	Mtime      time.Time `json:"mtime"`
+	SHA256     string    `json:"sha256"`
+	ImprovedAt time.Time `json:"improved_at"`
+	Method     string    `json:"method"`
+	// Procedure names the program that wrote the passes: "bufhrt" or
+	// "direct" (improvedirect). Entries written before 0.2.0 (13.11.2026)
+	// have no such field; they are bufhrt. Params belong to that program.
+	Procedure string         `json:"procedure,omitempty"`
+	Passes    int            `json:"passes"`
+	Host      string         `json:"host"`
+	Params    map[string]any `json:"params"`
+	// Delayed counts timing misses, summed over all passes (0 = timing
+	// kept): blocks bufhrt wrote late, or improvedirect's timer resets.
 	Delayed int `json:"delayed_blocks"`
 }
 

@@ -1,6 +1,7 @@
 // Command amberimprove rewrites the music files on the playback medium with
-// frankl's improvefile procedure, title by title, at night — bit-identical,
-// verified after every pass — and records each improved title in the album's
+// frankl's improvefile procedure (bufhrt, or since 0.2.0 optionally his
+// improvedirect), title by title, at night — bit-identical, verified after
+// every pass — and records each improved title in the album's
 // .amberimprove.json.
 package main
 
@@ -10,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -157,10 +159,15 @@ func processOne(ctx context.Context, cfg config.Config, st *state.Store, t queue
 	return err
 }
 
+// watchInterval is how often watch asks the guard (a variable only so that
+// the test of the window end does not have to wait ten seconds).
+var watchInterval = 10 * time.Second
+
 // watch cancels the running title as soon as work is no longer allowed
-// (playback starts, blocked span begins, window ends).
+// (playback starts, blocked span begins, window ends). The cancelled context
+// kills the writing program — bufhrt or improvedirect alike.
 func watch(ctx context.Context, cfg config.Config, cancel context.CancelCauseFunc) {
-	t := time.NewTicker(10 * time.Second)
+	t := time.NewTicker(watchInterval)
 	defer t.Stop()
 	for {
 		select {
@@ -308,10 +315,6 @@ func daemon(cfgPath string) int {
 	return 0
 }
 
-// overheadFactor: RAM copies and verification on top of the pure writing
-// time (measured on the NUC, Sept 2026).
-const overheadFactor = 1.5
-
 // windowLength is the length of the nightly window.
 func windowLength(w config.Window) time.Duration {
 	from, _ := config.ParseClock(w.From)
@@ -323,9 +326,12 @@ func windowLength(w config.Window) time.Duration {
 	return time.Duration(m) * time.Minute
 }
 
-// estimate is the expected duration of one title with all passes.
+// estimate is the expected duration of one title with all passes, at the
+// writing rate and overhead of the chosen procedure (config.WriteRate,
+// config.Overhead — improvedirect with frankl's set writes 40960 bytes per
+// second, so far fewer titles fit into a night than with bufhrt).
 func estimate(cfg config.Config, size int64) time.Duration {
-	sec := float64(size) * float64(cfg.Passes) / float64(cfg.Bufhrt.BytesPerSecond) * overheadFactor
+	sec := float64(size) * float64(cfg.Passes) / float64(cfg.WriteRate()) * cfg.Overhead()
 	return time.Duration(sec * float64(time.Second))
 }
 
@@ -378,7 +384,7 @@ func plan(cfg config.Config) {
 			full++
 		}
 	}
-	perPass := float64(bytes) / float64(cfg.Bufhrt.BytesPerSecond)
+	perPass := float64(bytes) / float64(cfg.WriteRate())
 	fmt.Printf("Titel gesamt: %d · offen: %d (%.1f GB) · Alben: %d, davon vollständig improvt: %d\n",
 		len(titles), len(pending), float64(bytes)/1e9, len(albums), full)
 	fmt.Printf("Reine Schreibzeit bei %d Durchgängen: ca. %.1f Stunden\n",
@@ -474,7 +480,7 @@ func serve(cfgPath, listen string) {
 		o := scan(cfg)
 		o.Configured = true
 		o.State, _ = state.Read(cfg.StateDir)
-		o.Method, o.Passes, o.Window, o.BPS = cfg.Method, cfg.Passes, cfg.Window, cfg.Bufhrt.BytesPerSecond
+		o.Method, o.Passes, o.Window, o.BPS = cfg.Method, cfg.Passes, cfg.Window, cfg.WriteRate()
 		writeJSON(w, o)
 	})
 	http.HandleFunc("/api/manifest", func(w http.ResponseWriter, r *http.Request) {
@@ -499,7 +505,8 @@ func serve(cfgPath, listen string) {
 		drives, derr := setup.Drives()
 		host, _ := os.Hostname()
 		resp := map[string]any{"config": cfg, "configured": ok, "presets": config.Presets,
-			"drives": drives, "host": host, "overhead": setup.OverheadFactor}
+			"direct_presets": config.DirectPresets,
+			"drives":         drives, "host": host, "overhead": cfg.Overhead()}
 		if derr != nil {
 			resp["drives_error"] = derr.Error()
 		}
@@ -513,23 +520,9 @@ func serve(cfgPath, listen string) {
 		}
 		writeJSON(w, dirs)
 	})
-	// candidate turns a submitted configuration into one that is safe to use:
-	// program path and extra ssh options are never taken from the browser.
 	candidate := func(r *http.Request) (config.Config, error) {
 		cur, _ := current()
-		c := cur
-		if err := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20)).Decode(&c); err != nil {
-			return c, err
-		}
-		c.Bufhrt.Program, c.Source.SSH, c.Source.Program = cur.Bufhrt.Program, cur.Source.SSH, cur.Source.Program
-		if c.Preset != "" {
-			if err := c.ApplyPreset(c.Preset); err != nil {
-				return c, err
-			}
-		} else if c.Method == "" {
-			c.Method = config.MethodName("eigen", c.Passes)
-		}
-		return c, nil
+		return candidate(cur, http.MaxBytesReader(nil, r.Body, 1<<20))
 	}
 	post := func(h func(http.ResponseWriter, config.Config)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -577,6 +570,29 @@ func serve(cfgPath, listen string) {
 
 	log.Printf("amberIMPROVE %s — Statusseite auf %s", version, listen)
 	log.Fatal(http.ListenAndServe(listen, nil))
+}
+
+// candidate turns a configuration submitted by the setup page into one that
+// is safe to use: program paths (bufhrt, improvedirect) and extra ssh options
+// are never taken from the browser. The method name follows the chosen
+// procedure and preset.
+func candidate(cur config.Config, body io.Reader) (config.Config, error) {
+	c := cur
+	if err := json.NewDecoder(body).Decode(&c); err != nil {
+		return c, err
+	}
+	c.Bufhrt.Program, c.Direct.Program = cur.Bufhrt.Program, cur.Direct.Program
+	c.Source.SSH, c.Source.Program = cur.Source.SSH, cur.Source.Program
+	if c.Preset != "" {
+		if err := c.ApplyPreset(c.Preset); err != nil {
+			return c, err
+		}
+	} else if c.Method == "" || c.Procedure != cur.Procedure {
+		// Custom values: a method name of the other procedure must not
+		// survive a change of procedure.
+		c.Method = config.MethodName(c.Procedure, "eigen", c.Passes)
+	}
+	return c, nil
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -38,8 +38,15 @@ type Config struct {
 	// Method identifies the procedure. Titles improved with another method
 	// count as "older method" and are queued again.
 	Method string `json:"method"`
+	// Procedure chooses the program that writes a pass: ProcBufhrt (original
+	// in RAM, written by bufhrt --interval; the default) or ProcDirect
+	// (frankl's improvedirect: reads and writes small blocks in turns,
+	// straight from and to the medium). Added 13.11.2026 (0.2.0); files
+	// written by 0.1.x have no such field and stay on bufhrt.
+	Procedure string `json:"procedure"`
 
 	Bufhrt   Bufhrt   `json:"bufhrt"`
+	Direct   Direct   `json:"direct"`
 	Window   Window   `json:"window"`
 	Playback Playback `json:"playback"`
 
@@ -94,6 +101,100 @@ type Bufhrt struct {
 	Shift int `json:"shift"`
 }
 
+// Procedures (values of Config.Procedure).
+const (
+	ProcBufhrt = "bufhrt"
+	ProcDirect = "direct"
+)
+
+// Direct holds the program path and the parameters of frankl's improvedirect
+// (frankl_stereo v0.9.4, src/improvedirect.c):
+//
+//	improvedirect [options] origfile copiedfile lps bps nsync ncp
+//
+// The field comments follow the program's own help text.
+type Direct struct {
+	Program string `json:"program"`
+	// CPU pins improvedirect with taskset (-1 = no pinning); frankl:
+	// "If applicable start the above on an isolated CPU".
+	CPU int `json:"cpu"`
+	// RTPrio runs improvedirect with chrt -f (0 = normal scheduling).
+	RTPrio int `json:"rt_prio"`
+
+	// LoopsPerSecond (lps) and BytesPerSecond (bps): one chunk of bps/lps
+	// bytes is read and written per loop.
+	LoopsPerSecond int   `json:"loops_per_second"`
+	BytesPerSecond int64 `json:"bytes_per_second"`
+	// SyncLoops (nsync): fdatasync every nsync loops.
+	SyncLoops int `json:"sync_loops"`
+	// OutCopies (ncp): each chunk passes through ncp cleaned buffers before
+	// it is written (1..1000).
+	OutCopies int `json:"out_copies"`
+	// DirectWrite (-o): write with O_DIRECT, not into the page cache.
+	DirectWrite bool `json:"direct_write"`
+	// DirectRead (-i): read with O_DIRECT (no page cache).
+	DirectRead bool `json:"direct_read"`
+	// Dsync (-y): write with O_DSYNC.
+	Dsync bool `json:"dsync"`
+	// Warmup (-w): a cheap system call directly after the sleep.
+	Warmup bool `json:"warmup"`
+	// Preallocate (-p): preallocate the output file with fallocate.
+	Preallocate bool `json:"preallocate"`
+	// Align (-a): the chunk is rounded down to a multiple of Align bytes;
+	// 0 = the program's default (4096 with -o or -i, otherwise 1).
+	Align int `json:"align"`
+}
+
+// EffectiveAlign is the alignment improvedirect uses (its default for 0).
+func (d Direct) EffectiveAlign() int64 {
+	if d.Align > 0 {
+		return int64(d.Align)
+	}
+	if d.DirectWrite || d.DirectRead {
+		return 4096
+	}
+	return 1
+}
+
+// ChunkSize is the number of bytes per loop, computed like improvedirect
+// does (bps/lps rounded down to the alignment); 0 = invalid parameters.
+func (d Direct) ChunkSize() int64 {
+	if d.LoopsPerSecond < 1 || d.BytesPerSecond < 1 {
+		return 0
+	}
+	n := d.BytesPerSecond / int64(d.LoopsPerSecond)
+	return n - n%d.EffectiveAlign()
+}
+
+// Rate is the real writing rate in bytes per second (chunk × loops). It can
+// be lower than BytesPerSecond because of the rounding.
+func (d Direct) Rate() int64 { return d.ChunkSize() * int64(d.LoopsPerSecond) }
+
+// IsDirect reports whether passes are written by improvedirect.
+func (c Config) IsDirect() bool { return c.Procedure == ProcDirect }
+
+// WriteRate is the writing rate of one pass in bytes per second — the one
+// place every time estimate asks (night run, plan, setup, status page).
+func (c Config) WriteRate() int64 {
+	if c.IsDirect() {
+		return c.Direct.Rate()
+	}
+	return c.Bufhrt.BytesPerSecond
+}
+
+// Overhead is the factor on top of the pure writing time of a title.
+// bufhrt: RAM copies and verification, measured on the NUC in Sept 2026
+// (1.43, rounded up). improvedirect has no RAM phase; what comes on top is
+// the verification read and the timer resets after slow fdatasync calls.
+// Its 1.2 is DERIVED from the source (13.11.2026), not yet measured on a
+// machine — measure and correct it here.
+func (c Config) Overhead() float64 {
+	if c.IsDirect() {
+		return 1.2
+	}
+	return 1.5
+}
+
 // Window is the nightly time window plus blocked spans (local time, HH:MM).
 type Window struct {
 	From    string `json:"from"`
@@ -135,7 +236,9 @@ func Default() Config {
 		Extensions: []string{"flac", "wav", "aif", "aiff", "aifc", "dsf", "dff", "wv", "ape", "alac", "m4a", "mp3", "ogg", "opus"},
 		Passes:     1,
 		Retries:    10,
+		Procedure:  ProcBufhrt,
 		Bufhrt:     Bufhrt{Program: "/opt/amberimprove/bin/bufhrt", CPU: -1},
+		Direct:     Direct{Program: "/opt/amberimprove/bin/improvedirect", CPU: -1},
 		Window:     Window{From: "23:30", To: "06:30"},
 		Playback: Playback{
 			Field: "engine_state",
@@ -146,6 +249,9 @@ func Default() Config {
 	if inContainer() {
 		c.StateDir = "/config/state"
 	}
+	// The direct block carries frankl's set from the start, so choosing
+	// "direct" by hand in the file works without copying numbers.
+	c.Direct.setParams(DirectPresets[0].Direct)
 	_ = c.ApplyPreset("sehr-langsam")
 	return c
 }
@@ -193,7 +299,7 @@ func Load(path string) (Config, error) {
 		return c, fmt.Errorf("Konfiguration %s fehlerhaft: %w", path, err)
 	}
 	// Values edited by hand no longer match the named preset: show "custom".
-	if p, ok := FindPreset(c.Preset); !ok || !p.Bufhrt.sameParams(c.Bufhrt) {
+	if !c.presetMatches() {
 		c.Preset = ""
 	}
 	return c, c.Validate()
@@ -247,6 +353,34 @@ func (c Config) Validate() error {
 	}
 	if c.Bufhrt.BytesPerSecond <= 0 || c.Bufhrt.LoopsPerSecond <= 0 {
 		errs = append(errs, "bufhrt.bytes_per_second und loops_per_second müssen > 0 sein")
+	}
+	switch c.Procedure {
+	case ProcBufhrt:
+		// The method name is what the album records compare: a bufhrt
+		// configuration must not carry the name of the direct procedure.
+		if strings.Contains(c.Method, "/"+DirectTag+"/") {
+			errs = append(errs, `method nennt das Verfahren „direkt“, procedure ist aber "bufhrt"`)
+		}
+	case ProcDirect:
+		d := c.Direct
+		// The same limits improvedirect checks itself ("invalid arguments",
+		// "chunk size … is smaller than …") — found here, not at night.
+		if d.LoopsPerSecond < 1 || d.BytesPerSecond < 1 || d.SyncLoops < 1 || d.OutCopies < 1 || d.OutCopies > 1000 {
+			errs = append(errs, "direct: loops_per_second, bytes_per_second und sync_loops müssen >= 1 sein, out_copies 1 bis 1000")
+		} else if d.ChunkSize() <= 0 {
+			errs = append(errs, fmt.Sprintf("direct: bytes_per_second/loops_per_second ist kleiner als ein Block (%d Bytes)", d.EffectiveAlign()))
+		}
+		if d.Align < 0 || ((d.DirectWrite || d.DirectRead) && d.EffectiveAlign()%512 != 0) {
+			errs = append(errs, "direct.align muss mit direct_write/direct_read ein Vielfaches von 512 sein")
+		}
+		if !filepath.IsAbs(d.Program) {
+			errs = append(errs, "direct.program muss ein absoluter Pfad sein")
+		}
+		if c.Method != "" && !strings.Contains(c.Method, "/"+DirectTag+"/") {
+			errs = append(errs, `method muss bei procedure "direct" das Verfahren nennen, z. B. `+MethodName(ProcDirect, "eigen", c.Passes))
+		}
+	default:
+		errs = append(errs, `procedure muss "bufhrt" oder "direct" sein`)
 	}
 	for _, s := range append([]Span{{c.Window.From, c.Window.To}}, c.Window.Blocked...) {
 		if _, err := ParseClock(s.From); err != nil {

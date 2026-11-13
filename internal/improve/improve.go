@@ -1,10 +1,18 @@
 // Package improve runs frankl's improvefile procedure on one title:
-// original into RAM, several bufhrt passes on the target medium, bit-identity
+// original into RAM, several passes on the target medium, bit-identity
 // check after every pass, then an in-place replacement by rename.
 //
-// The procedure is frankl's (bufhrt --interval, frankl_stereo, GPL-3.0-or-
-// later); the pass structure with verification after each pass follows
-// Harald Scherer's nsc scripts (nihil.sine.causa, GPL-3.0-or-later).
+// A pass is written by one of frankl's two programs (frankl_stereo,
+// GPL-3.0-or-later), chosen in the configuration:
+//   - bufhrt --interval: the original lies in RAM and is written from there
+//     (the procedure of 0.1.x, still the default);
+//   - improvedirect (since frankl_stereo 0.9.4, here since 13.11.2026): reads
+//     and writes small blocks in turns, straight from and to the medium
+//     (O_DIRECT), "instead of loading music data into RAM first" (CHANGES).
+//
+// The pass structure with verification after each pass follows Harald
+// Scherer's nsc scripts (nihil.sine.causa, GPL-3.0-or-later) and is the same
+// for both programs.
 package improve
 
 import (
@@ -114,10 +122,20 @@ func Title(ctx context.Context, c config.Config, rel string, h Hooks) (manifest.
 		return manifest.Entry{}, &Skip{SkipSourceDiffers, "SHA-256 weicht ab"}
 	}
 
-	prev := orig
+	// first is what pass 1 reads. bufhrt writes from the original in RAM.
+	// improvedirect is made to read from the medium (direct read): its first
+	// pass reads the title itself, which was just proven to be bit-identical
+	// to the original; O_DIRECT on a RAM disk (tmpfs) would make no sense and
+	// fails on kernels before 6.6. The title is only ever READ here — first
+	// is never removed, the title is replaced by the final rename alone.
+	first := orig
+	if c.IsDirect() {
+		first = target
+	}
+	prev := first
 	delayed := 0
 	cleanup := func() {
-		if prev != orig {
+		if prev != first {
 			os.Remove(prev)
 		}
 		clean(c.WorkDir)
@@ -133,7 +151,7 @@ func Title(ctx context.Context, c config.Config, rel string, h Hooks) (manifest.
 				h.Retry(pass, try)
 			}
 			os.Remove(out)
-			n, err := RunBufhrt(ctx, c.Bufhrt, prev, out)
+			n, err := RunPass(ctx, c, prev, out)
 			delayed += n
 			if h.Delayed != nil && n > 0 {
 				h.Delayed(pass, n)
@@ -162,7 +180,7 @@ func Title(ctx context.Context, c config.Config, rel string, h Hooks) (manifest.
 			cleanup()
 			return manifest.Entry{}, fmt.Errorf("%w: Durchgang %d", ErrNotIdentical, pass)
 		}
-		if prev != orig {
+		if prev != first {
 			os.Remove(prev)
 		}
 		prev = out
@@ -197,15 +215,35 @@ func Title(ctx context.Context, c config.Config, rel string, h Hooks) (manifest.
 		SHA256:     sumOrig,
 		ImprovedAt: time.Now(),
 		Method:     c.Method,
+		Procedure:  c.Procedure,
 		Passes:     c.Passes,
 		Host:       host,
-		Params:     Params(c.Bufhrt),
+		Params:     Params(c),
 		Delayed:    delayed,
 	}, nil
 }
 
-// Params lists the bufhrt parameters for the manifest.
-func Params(b config.Bufhrt) map[string]any {
+// Params lists the parameters of the chosen procedure for the manifest.
+func Params(c config.Config) map[string]any {
+	if c.IsDirect() {
+		d := c.Direct
+		return map[string]any{
+			"loops_per_second": d.LoopsPerSecond,
+			"bytes_per_second": d.BytesPerSecond,
+			"chunk_bytes":      d.ChunkSize(),
+			"sync_loops":       d.SyncLoops,
+			"out_copies":       d.OutCopies,
+			"direct_write":     d.DirectWrite,
+			"direct_read":      d.DirectRead,
+			"dsync":            d.Dsync,
+			"warmup":           d.Warmup,
+			"preallocate":      d.Preallocate,
+			"align":            d.EffectiveAlign(),
+			"cpu":              d.CPU,
+			"rt_prio":          d.RTPrio,
+		}
+	}
+	b := c.Bufhrt
 	return map[string]any{
 		"buffer_size":          b.BufferSize,
 		"loops_per_second":     b.LoopsPerSecond,
@@ -281,6 +319,103 @@ func RunBufhrt(ctx context.Context, b config.Bufhrt, in, out string) (int, error
 		return delayed, fmt.Errorf("bufhrt: %v: %s", err, strings.Join(tail, " | "))
 	}
 	return delayed, nil
+}
+
+// DirectArgs builds the improvedirect command line, like the line in
+// frankl's improvefile script (frankl_stereo v0.9.4, scripts/improvefile:21):
+//
+//	improvedirect -v -o -i -w "$1" "$2" 10 40960 10 128
+//
+// -v is added by RunDirect. The file names follow "--", so a title whose
+// name starts with "-" is never read as an option.
+func DirectArgs(d config.Direct, in, out string) []string {
+	var a []string
+	if d.CPU >= 0 {
+		a = append(a, "taskset", "-c", strconv.Itoa(d.CPU))
+	}
+	if d.RTPrio > 0 {
+		a = append(a, "chrt", "-f", strconv.Itoa(d.RTPrio))
+	}
+	a = append(a, d.Program)
+	a = append(a, directSwitches(d)...)
+	return append(a, "--", in, out,
+		strconv.Itoa(d.LoopsPerSecond), strconv.FormatInt(d.BytesPerSecond, 10),
+		strconv.Itoa(d.SyncLoops), strconv.Itoa(d.OutCopies))
+}
+
+// directSwitches are improvedirect's options in the order of its help text.
+func directSwitches(d config.Direct) []string {
+	var a []string
+	if d.DirectWrite {
+		a = append(a, "-o")
+	}
+	if d.Dsync {
+		a = append(a, "-y")
+	}
+	if d.DirectRead {
+		a = append(a, "-i")
+	}
+	if d.Align > 0 {
+		a = append(a, "-a", strconv.Itoa(d.Align))
+	}
+	if d.Warmup {
+		a = append(a, "-w")
+	}
+	if d.Preallocate {
+		a = append(a, "-p")
+	}
+	return a
+}
+
+// RunDirect runs one improvedirect pass with -v and returns the number of
+// timer resets it reports at the end ("timer reset N times"): how often the
+// program fell behind its schedule and started the clock anew (a loop began
+// late, or an fdatasync took longer than half a loop). It is improvedirect's
+// counterpart to bufhrt's delayed blocks (0 = the timing was kept).
+func RunDirect(ctx context.Context, d config.Direct, in, out string) (int, error) {
+	a := DirectArgs(d, in, out)
+	// -v goes in front of the "--" that ends the options.
+	for i, s := range a {
+		if s == "--" {
+			a = append(a[:i], append([]string{"-v"}, a[i:]...)...)
+			break
+		}
+	}
+	cmd := exec.CommandContext(ctx, a[0], a[1:]...)
+	cmd.WaitDelay = 5 * time.Second
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return 0, err
+	}
+	if err := cmd.Start(); err != nil {
+		return 0, err
+	}
+	resets := 0
+	var tail []string
+	sc := bufio.NewScanner(stderr)
+	for sc.Scan() {
+		line := sc.Text()
+		if i := strings.Index(line, "timer reset "); i >= 0 {
+			_, _ = fmt.Sscanf(line[i:], "timer reset %d times", &resets)
+		}
+		tail = append(tail, line)
+		if len(tail) > 5 {
+			tail = tail[1:]
+		}
+	}
+	if err := cmd.Wait(); err != nil {
+		return resets, fmt.Errorf("improvedirect: %v: %s", err, strings.Join(tail, " | "))
+	}
+	return resets, nil
+}
+
+// RunPass writes one pass with the program of the chosen procedure and
+// returns its count of timing misses.
+func RunPass(ctx context.Context, c config.Config, in, out string) (int, error) {
+	if c.IsDirect() {
+		return RunDirect(ctx, c.Direct, in, out)
+	}
+	return RunBufhrt(ctx, c.Bufhrt, in, out)
 }
 
 func sum(path string) (string, error) {

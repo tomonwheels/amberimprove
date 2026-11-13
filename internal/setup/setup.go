@@ -1,6 +1,6 @@
 // Package setup backs the setup page: which drives exist, which folders they
 // hold, whether a candidate configuration works, and whether this machine
-// keeps bufhrt's timing with the chosen quality.
+// keeps the timing of bufhrt or improvedirect with the chosen quality.
 package setup
 
 import (
@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tomonwheels/amberimprove/internal/cache"
 	"github.com/tomonwheels/amberimprove/internal/config"
 	"github.com/tomonwheels/amberimprove/internal/guard"
 	"github.com/tomonwheels/amberimprove/internal/improve"
@@ -231,10 +232,6 @@ type Report struct {
 	OK     bool    `json:"ok"`
 }
 
-// OverheadFactor: RAM copies and verification on top of the pure writing
-// time (measured on the NUC, Sept 2026: 1.43).
-const OverheadFactor = 1.5
-
 // Examine checks c without changing anything.
 func Examine(ctx context.Context, c config.Config) Report {
 	var r Report
@@ -297,7 +294,24 @@ func Examine(ctx context.Context, c config.Config) Report {
 		}
 	}
 
-	if out, err := exec.Command(c.Bufhrt.Program, "--version").CombinedOutput(); err != nil {
+	if c.IsDirect() {
+		// improvedirect has no --version; without arguments it prints its
+		// help (first line: name and version) and exits with 0.
+		if out, err := exec.Command(c.Direct.Program).CombinedOutput(); err != nil {
+			add("improvedirect", "error", c.Direct.Program)
+		} else {
+			add("improvedirect", "ok", strings.TrimSpace(firstLine(string(out))))
+		}
+		// O_DIRECT is refused by some filesystems (RAM disks, some FUSE and
+		// overlay mounts): every title would fail at night. Asked here.
+		if (c.Direct.DirectWrite || c.Direct.DirectRead) && filepath.IsAbs(c.WorkDir) {
+			if err := cache.DirectOK(existing(c.WorkDir)); err != nil {
+				add("direct_io", "error", err.Error())
+			} else {
+				add("direct_io", "ok", "")
+			}
+		}
+	} else if out, err := exec.Command(c.Bufhrt.Program, "--version").CombinedOutput(); err != nil {
 		add("bufhrt", "error", c.Bufhrt.Program)
 	} else {
 		add("bufhrt", "ok", strings.TrimSpace(lastLine(string(out))))
@@ -311,14 +325,14 @@ func Examine(ctx context.Context, c config.Config) Report {
 		add("player", "ok", c.Playback.URL)
 	}
 
-	if c.Bufhrt.BytesPerSecond > 0 && r.Bytes > 0 {
+	if c.WriteRate() > 0 && r.Bytes > 0 {
 		from, _ := config.ParseClock(c.Window.From)
 		to, _ := config.ParseClock(c.Window.To)
 		win := float64((to-from+24*60)%(24*60)) * 60
 		if win == 0 {
 			win = 24 * 3600
 		}
-		r.Nights = float64(r.Bytes) * float64(c.Passes) * OverheadFactor / float64(c.Bufhrt.BytesPerSecond) / win
+		r.Nights = float64(r.Bytes) * float64(c.Passes) * c.Overhead() / float64(c.WriteRate()) / win
 	}
 
 	r.OK = true
@@ -331,7 +345,8 @@ func Examine(ctx context.Context, c config.Config) Report {
 }
 
 // Timing writes 1 MB with the given parameters into the work directory and
-// reports how many blocks bufhrt wrote late on this machine.
+// reports how many blocks bufhrt wrote late on this machine — or, for the
+// direct procedure, how often improvedirect had to reset its timer.
 type Timing struct {
 	Millis    int64  `json:"millis"`
 	Delayed   int    `json:"delayed"`
@@ -351,6 +366,11 @@ func MeasureTiming(ctx context.Context, c config.Config) Timing {
 	data := make([]byte, 1<<20)
 	_, _ = rand.Read(data)
 	in := filepath.Join(os.TempDir(), "amberimprove-taktprobe")
+	if c.IsDirect() {
+		// improvedirect reads with O_DIRECT, as at night from the medium:
+		// the sample must lie there too (/tmp is often a RAM disk).
+		in = filepath.Join(c.WorkDir, "taktprobe-quelle")
+	}
 	out := filepath.Join(c.WorkDir, "taktprobe")
 	defer os.Remove(in)
 	defer os.Remove(out)
@@ -359,7 +379,7 @@ func MeasureTiming(ctx context.Context, c config.Config) Timing {
 		return Timing{Error: err.Error()}
 	}
 	start := time.Now()
-	n, err := improve.RunBufhrt(ctx, c.Bufhrt, in, out)
+	n, err := improve.RunPass(ctx, c, in, out)
 	t := Timing{Millis: time.Since(start).Milliseconds(), Delayed: n}
 	if err != nil {
 		t.Error = err.Error()
@@ -370,18 +390,24 @@ func MeasureTiming(ctx context.Context, c config.Config) Timing {
 	return t
 }
 
+// existing returns p or its nearest existing parent (the work directory is
+// only created by the first run).
+func existing(p string) string {
+	for {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return p
+		}
+		p = parent
+	}
+}
+
 func sameFS(a, b string) bool {
 	// b may not exist yet: compare its nearest existing parent.
-	for {
-		if _, err := os.Stat(b); err == nil {
-			break
-		}
-		parent := filepath.Dir(b)
-		if parent == b {
-			return false
-		}
-		b = parent
-	}
+	b = existing(b)
 	var sa, sb syscall.Stat_t
 	if syscall.Stat(a, &sa) != nil || syscall.Stat(b, &sb) != nil {
 		return false
@@ -395,6 +421,10 @@ func quoteAll(args []string) []string {
 		q[i] = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
 	}
 	return q
+}
+
+func firstLine(s string) string {
+	return strings.Split(strings.TrimSpace(s), "\n")[0]
 }
 
 func lastLine(s string) string {
