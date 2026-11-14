@@ -1,6 +1,6 @@
 # Änderungen
 
-## 0.2.0 (in Vorbereitung)
+## 0.2.0 (14.11.2026)
 
 **Neu: zweites Verfahren „Direkt“ mit frankls `improvedirect`.**
 
